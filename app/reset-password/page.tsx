@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react"; // 👈 Tambahin Suspense di sini
 import { useSearchParams, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { confirmPasswordReset, verifyPasswordResetCode } from "firebase/auth";
-import { useAccent } from "@/lib/accent"; // 👈 IMPORT HOOK ACCENT
+import { useAccent } from "@/lib/accent"; 
 
-export default function ResetPasswordPage() {
-  const { accent, style: accentStyle } = useAccent(); // 👈 INISIALISASI HOOK
+// 1. Fungsi asli lu gw ubah namanya dan gak di-export default langsung
+function ResetPasswordContent() {
+  const { accent, style: accentStyle } = useAccent(); 
   const searchParams = useSearchParams();
   const router = useRouter();
   
@@ -59,7 +60,7 @@ export default function ResetPasswordPage() {
     try {
       await confirmPasswordReset(auth, oobCode, newPassword);
       alert("Mantap Bre! Password lo berhasil diganti. Langsung login gih.");
-      router.push("/profile"); // Sesuaikan kalau URL lo /profile
+      router.push("/profile"); 
     } catch (error: any) {
       console.error(error);
       alert("Waduh gagal ganti password: " + error.message);
@@ -143,5 +144,18 @@ export default function ResetPasswordPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+// 2. Ini dia fungsi pembungkus Suspense-nya yang wajib ada buat Vercel
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0F0F12] flex justify-center items-center">
+        <div className="w-8 h-8 border-4 border-white/10 border-t-gray-500 rounded-full animate-spin"></div>
+      </div>
+    }>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }
