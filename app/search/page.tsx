@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react"; // 👈 IMPORT SUSPENSE
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Search, X, Loader2, Star, Clock } from "lucide-react";
 
 import { searchManga, type MangaItem } from "@/lib/api"; 
-import { useAccent } from "@/lib/accent"; // 👈 IMPORT HOOK ACCENT
+import { useAccent } from "@/lib/accent"; 
 
 function cn(...classes: (string | false | null | undefined)[]) {
   return classes.filter(Boolean).join(" ");
@@ -35,7 +35,6 @@ function transformItem(item: any): MangaItem {
 }
 
 // ─── KOMPONEN KARTU PENCARIAN ───
-// 👈 Terima props accent & accentStyle biar tetep dapet warna dinamis
 function SearchCard({ item, accent, accentStyle }: { item: MangaItem; accent: string; accentStyle: any }) {
   const thumb = cleanThumb(item.thumb);
   return (
@@ -79,9 +78,9 @@ function SearchCard({ item, accent, accentStyle }: { item: MangaItem; accent: st
   );
 }
 
-// ─── HALAMAN UTAMA PENCARIAN ───
-export default function SearchPage() {
-  const { accent, style: accentStyle } = useAccent(); // 👈 PANGGIL HOOK ACCENT
+// ─── KOMPONEN ISI PENCARIAN (TANPA EXPORT DEFAULT) ───
+function SearchContent() {
+  const { accent, style: accentStyle } = useAccent(); 
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -227,5 +226,18 @@ export default function SearchPage() {
 
       </main>
     </div>
+  );
+}
+
+// ─── HALAMAN UTAMA PENCARIAN (DIBUNGKUS SUSPENSE) ───
+export default function SearchPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center">
+        <Loader2 className="w-8 h-8 text-gray-500 animate-spin" />
+      </div>
+    }>
+      <SearchContent />
+    </Suspense>
   );
 }
