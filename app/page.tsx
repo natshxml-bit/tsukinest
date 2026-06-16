@@ -895,8 +895,8 @@ function ErrorState({ onRetry, accentStyle }: { onRetry: () => void; accentStyle
       <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mb-4">
         <AlertCircle className="w-8 h-8 text-red-400" />
       </div>
-      <h3 className="text-white font-semibold mb-1">Gagal memuat data</h3>
-      <p className="text-gray-500 text-sm mb-4">Cek koneksi internet atau coba lagi</p>
+      <h3 className="text-white font-semibold mb-1">Gagal Wait For update </h3>
+      <p className="text-gray-500 text-sm mb-4">Cek MAINTANCE</p>
       <button
         onClick={onRetry}
         className={cn(
