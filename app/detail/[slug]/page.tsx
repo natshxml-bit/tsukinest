@@ -1,3 +1,4 @@
+// app/detail/[slug]/page.tsx
 "use client";
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
@@ -44,14 +45,14 @@ import {
   Search,
   Monitor,
   ImageIcon,
+  Check,
 } from "lucide-react";
 
-// ─── IMPORT FIREBASE ───
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 
-/* ─── Tipe Data Lokal ─── */
+/* ─── Tipe Data ─── */
 interface ChapterItem {
   index?: number;
   chapter_url?: string;
@@ -81,43 +82,34 @@ interface MangaDetail {
   release_year?: string;
   total_chapters?: number;
   updated_at?: string;
+  related_series?: {
+    title: string;
+    slug: string;
+    thumb: string;
+    type: string;
+    latest_chapter?: string;
+    rating?: string;
+    link?: string;
+  }[];
 }
 
-/* ─── Kunci Penyimpanan Lokal ─── */
 const READ_CHAPTERS_KEY = "tsukinest_read_chapters";
 const THEME_KEY = "tsukinest_theme";
 
-/* ─── Utilitas ─── */
-function cleanThumb(url: string): string {
-  if (!url) return "";
-  let finalUrl = url;
-  if (finalUrl.includes("<")) {
-    const match = finalUrl.match(/src=["']([^"']+)["']/i);
-    if (match) finalUrl = match[1];
-  }
-  if (
-    finalUrl.startsWith("http") &&
-    !finalUrl.includes("wsrv.nl") &&
-    !finalUrl.includes("placehold")
-  ) {
-    return `https://wsrv.nl/?url=${encodeURIComponent(finalUrl)}&w=600&output=webp&q=85`;
-  }
-  return finalUrl;
+/* ─── Utils ─── */
+function cn(...classes: (string | false | null | undefined)[]) {
+  return classes.filter(Boolean).join(" ");
 }
 
-function cleanThumbHero(url: string): string {
-  if (!url) return "";
+function cleanThumb(url: string): string {
+  if (!url) return "/no-image.png";
   let finalUrl = url;
   if (finalUrl.includes("<")) {
     const match = finalUrl.match(/src=["']([^"']+)["']/i);
     if (match) finalUrl = match[1];
   }
-  if (
-    finalUrl.startsWith("http") &&
-    !finalUrl.includes("wsrv.nl") &&
-    !finalUrl.includes("placehold")
-  ) {
-    return `https://wsrv.nl/?url=${encodeURIComponent(finalUrl)}&w=1200&output=webp&q=80&blur=5`;
+  if (finalUrl.startsWith("http") && !finalUrl.includes("wsrv.nl")) {
+    return `https://wsrv.nl/?url=${encodeURIComponent(finalUrl)}&w=600&output=webp&q=85`;
   }
   return finalUrl;
 }
@@ -130,8 +122,8 @@ function getOriginalUrl(url: string): string {
       const originalUrl = urlObj.searchParams.get("url");
       if (originalUrl) return decodeURIComponent(originalUrl);
     }
-  } catch (e) {
-    // Abaikan jika error parsing
+  } catch {
+    // ignore
   }
   let finalUrl = url;
   if (finalUrl.includes("<")) {
@@ -141,7 +133,23 @@ function getOriginalUrl(url: string): string {
   return finalUrl;
 }
 
-/* ─── Hook untuk Animasi Scroll ─── */
+/* ─── Click Outside Hook ─── */
+function useClickOutside(ref: React.RefObject<HTMLElement | null>, handler: () => void) {
+  useEffect(() => {
+    const listener = (e: MouseEvent | TouchEvent) => {
+      if (!ref.current || ref.current.contains(e.target as Node)) return;
+      handler();
+    };
+    document.addEventListener("mousedown", listener);
+    document.addEventListener("touchstart", listener);
+    return () => {
+      document.removeEventListener("mousedown", listener);
+      document.removeEventListener("touchstart", listener);
+    };
+  }, [ref, handler]);
+}
+
+/* ─── Scroll Animation Hook ─── */
 function useScrollAnimation() {
   const ref = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -154,47 +162,35 @@ function useScrollAnimation() {
           observer.disconnect();
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.05 }
     );
 
-    if (ref.current) {
-      observer.observe(ref.current);
-    }
-
+    if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
   }, []);
 
   return { ref, isVisible };
 }
 
-/* ─── Komponen Animasi Masuk ─── */
+/* ─── Fade In Component ─── */
 function FadeIn({
   children,
   delay = 0,
-  direction = "up",
   className = "",
 }: {
   children: React.ReactNode;
   delay?: number;
-  direction?: "up" | "down" | "left" | "right";
   className?: string;
 }) {
   const { ref, isVisible } = useScrollAnimation();
-  const directionStyles = {
-    up: "translate-y-8",
-    down: "-translate-y-8",
-    left: "translate-x-8",
-    right: "-translate-x-8",
-  };
-
   return (
     <div
       ref={ref}
-      className={`transition-all duration-700 ease-out ${className} ${
-        isVisible
-          ? "opacity-100 translate-x-0 translate-y-0"
-          : `opacity-0 ${directionStyles[direction]}`
-      }`}
+      className={cn(
+        "transition-all duration-500 ease-out transform-gpu",
+        isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4",
+        className
+      )}
       style={{ transitionDelay: `${delay}ms` }}
     >
       {children}
@@ -202,20 +198,22 @@ function FadeIn({
   );
 }
 
-/* ─── Komponen Glass ─── */
-function Glass({ children, className = "", hover = false }: { children: React.ReactNode; className?: string; hover?: boolean }) {
+/* ─── Card ─── */
+function Card({ children, className = "", hover = false }: { children: React.ReactNode; className?: string; hover?: boolean }) {
   return (
     <div
-      className={`bg-[#16161e]/80 backdrop-blur-xl border border-white/[0.06] rounded-2xl shadow-2xl shadow-black/50 ${
-        hover ? "hover:border-white/[0.12] transition-all duration-300" : ""
-      } ${className}`}
+      className={cn(
+        "bg-[#141414] border border-white/[0.05] rounded-2xl",
+        hover && "hover:border-white/[0.1] transition-colors duration-300",
+        className
+      )}
     >
       {children}
     </div>
   );
 }
 
-/* ─── Badge Component ─── */
+/* ─── Badge ─── */
 function Badge({
   children,
   variant = "default",
@@ -229,18 +227,16 @@ function Badge({
 }) {
   const { style: accentStyle } = useAccent();
   const variants = {
-    default: "bg-white/5 text-gray-400 border-white/10",
-    primary: `${accentStyle.soft} ${accentStyle.text} border border-transparent`,
-    success: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-    warning: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-    danger: "bg-rose-500/10 text-rose-400 border-rose-500/20",
-    info: "bg-sky-500/10 text-sky-400 border-sky-500/20",
+    default: "bg-[#1c1c1c] text-neutral-400 border-white/[0.05]",
+    primary: cn(accentStyle.bg + "/10", accentStyle.text, "border-transparent"),
+    success: "bg-emerald-500/10 text-emerald-400 border-emerald-500/10",
+    warning: "bg-amber-500/10 text-amber-400 border-amber-500/10",
+    danger: "bg-rose-500/10 text-rose-400 border-rose-500/10",
+    info: "bg-sky-500/10 text-sky-400 border-sky-500/10",
   };
 
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold border ${variants[variant]} ${className}`}
-    >
+    <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border", variants[variant], className)}>
       {icon}
       {children}
     </span>
@@ -261,7 +257,7 @@ function StatCard({
 }) {
   const { style: accentStyle } = useAccent();
   const colorMap: Record<string, string> = {
-    primary: `${accentStyle.text} ${accentStyle.soft}`,
+    primary: cn(accentStyle.text, accentStyle.bg + "/10"),
     emerald: "text-emerald-400 bg-emerald-500/10",
     amber: "text-amber-400 bg-amber-500/10",
     rose: "text-rose-400 bg-rose-500/10",
@@ -269,67 +265,120 @@ function StatCard({
   };
 
   return (
-    <FadeIn>
-      <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-colors">
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${colorMap[color] || colorMap.primary}`}>
-          {icon}
-        </div>
-        <div>
-          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{label}</p>
-          <p className="text-sm font-bold text-gray-200">{value}</p>
-        </div>
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-[#1c1c1c] border border-white/[0.05] hover:bg-white/[0.05] transition-colors">
+      <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center shrink-0", colorMap[color] || colorMap.primary)}>
+        {icon}
       </div>
-    </FadeIn>
+      <div className="min-w-0">
+        <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wide">{label}</p>
+        <p className="text-sm font-bold text-neutral-200 truncate">{value}</p>
+      </div>
+    </div>
   );
 }
 
-/* ─── Image With Fallback ─── */
-function SafeImage({
+/* ─── Smart Image ─── */
+function SmartImage({
   src,
   alt,
+  title,
   fill,
   className = "",
   priority,
-  onError,
+  ...props
 }: {
   src: string;
   alt: string;
+  title: string;
   fill?: boolean;
   className?: string;
   priority?: boolean;
-  onError?: () => void;
+  [key: string]: any;
 }) {
-  const [imgSrc, setImgSrc] = useState(src);
-  const [failed, setFailed] = useState(false);
+  const [imgSrc, setImgSrc] = useState(src || "/no-image.png");
+  const [hasTriedOriginal, setHasTriedOriginal] = useState(false);
+  const [hasTriedAniList, setHasTriedAniList] = useState(false);
 
-  useEffect(() => {
-    setImgSrc(src);
-    setFailed(false);
-  }, [src]);
+  const fetchAniListFallback = async () => {
+    if (hasTriedAniList) return;
+    setHasTriedAniList(true);
 
-  const handleError = () => {
-    if (!failed) {
-      if (imgSrc.includes("wsrv.nl")) {
-        const original = getOriginalUrl(imgSrc);
-        if (original && original !== imgSrc) {
-          setImgSrc(original);
-          return;
+    try {
+      const cleanTitle = title.split(/[-–—~,|:]/)[0].replace(/[★☆]/g, " ").trim();
+      const query = `
+        query ($search: String) {
+          Media (search: $search, type: MANGA) {
+            coverImage {
+              extraLarge
+              large
+            }
+          }
         }
+      `;
+      const res = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, variables: { search: cleanTitle } })
+      });
+
+      if (!res.ok) {
+        setImgSrc("/no-image.png");
+        return;
       }
-      setFailed(true);
-      onError?.();
+
+      const json = await res.json();
+      const coverImage = json?.data?.Media?.coverImage;
+      const altPoster = coverImage?.extraLarge || coverImage?.large;
+
+      if (altPoster) {
+        setImgSrc(altPoster);
+      } else {
+        setImgSrc("/no-image.png");
+      }
+    } catch (error) {
+      setImgSrc("/no-image.png");
     }
   };
 
-  if (failed) {
+  useEffect(() => {
+    const isPlaceholder = 
+      !src || 
+      src.includes("via.placeholder.com") || 
+      src.includes("no-image.png") ||
+      title?.toLowerCase().includes("lookism");
+
+    if (isPlaceholder) {
+      fetchAniListFallback();
+    } else {
+      setImgSrc(src);
+      setHasTriedOriginal(false);
+      setHasTriedAniList(false);
+    }
+  }, [src, title]);
+
+  const handleError = () => {
+    if (imgSrc.includes("wsrv.nl") && !hasTriedOriginal) {
+      setHasTriedOriginal(true);
+      const original = getOriginalUrl(imgSrc);
+      if (original && original !== imgSrc) {
+        setImgSrc(original);
+        return;
+      }
+    }
+    fetchAniListFallback();
+  };
+
+  if (imgSrc === "/no-image.png") {
     return (
       <div
-        className={`bg-[#1c1c24] flex flex-col items-center justify-center text-center p-2 ${
-          fill ? "absolute inset-0 w-full h-full" : "w-full h-full"
-        } ${className}`}
+        className={cn(
+          "bg-[#1c1c1c] flex flex-col items-center justify-center text-center p-2",
+          fill ? "absolute inset-0 w-full h-full" : "w-full h-full",
+          className
+        )}
       >
-        <ImageIcon className="text-gray-600 w-8 h-8 mb-2" />
-        <span className="text-[10px] text-gray-500 font-medium line-clamp-2 px-1 leading-tight">{alt}</span>
+        <ImageIcon className="text-neutral-600 w-6 h-6 mb-1" />
+        <span className="text-[10px] text-neutral-500 font-medium line-clamp-2 px-1">{alt}</span>
       </div>
     );
   }
@@ -338,17 +387,18 @@ function SafeImage({
     <img
       src={imgSrc}
       alt={alt}
-      className={`${fill ? "absolute inset-0 w-full h-full" : ""} ${className}`}
+      className={cn(fill ? "absolute inset-0 w-full h-full object-cover" : "", className)}
       onError={handleError}
       {...(priority ? { fetchPriority: "high" as any } : {})}
+      {...props}
     />
   );
 }
 
-/* ─── Halaman Utama ─── */
+
+/* ─── Main Page ─── */
 export default function DetailPage() {
   const { accent, style: accentStyle } = useAccent();
-
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -374,14 +424,12 @@ export default function DetailPage() {
   const [showNotification, setShowNotification] = useState(false);
   const [lastReadChapter, setLastReadChapter] = useState<string | null>(null);
 
-  // ─── Helper: Ekstrak nilai numerik dari chapter_number (ABAIKAN index) ───
-  const getChapterNumberValue = useCallback((chapter: ChapterItem): number => {
-    // Ekstrak angka (bisa desimal) dari string seperti "Chapter 179.2", "Chapter 179 END", "Chapter 01"
-    const match = chapter.chapter_number?.match(/(\d+(?:\.\d+)?)/);
-    if (match) return parseFloat(match[0]);
-    return 0;
-  }, []);
+  const settingsRef = useRef<HTMLDivElement>(null);
+  const chapterListRef = useRef<HTMLDivElement>(null);
 
+  useClickOutside(settingsRef, () => setShowSettings(false));
+
+  /* ─── Auth ─── */
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -389,25 +437,23 @@ export default function DetailPage() {
     return () => unsub();
   }, []);
 
+  /* ─── Load Local Data ─── */
   useEffect(() => {
     try {
       const stored = localStorage.getItem(READ_CHAPTERS_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         setReadChapters(parsed);
-        if (parsed.length > 0) {
-          setLastReadChapter(parsed[parsed.length - 1]);
-        }
+        if (parsed.length > 0) setLastReadChapter(parsed[parsed.length - 1]);
       }
       const storedMode = localStorage.getItem(THEME_KEY);
-      if (storedMode) {
-        setReadingMode(storedMode as any);
-      }
-    } catch (err) {
-      console.error("Gagal memuat riwayat bab lokal:", err);
+      if (storedMode) setReadingMode(storedMode as any);
+    } catch {
+      // ignore
     }
   }, []);
 
+  /* ─── Check Bookmark ─── */
   useEffect(() => {
     if (!user || !slug) return;
     const checkBookmark = async () => {
@@ -416,12 +462,13 @@ export default function DetailPage() {
         const snap = await getDoc(docRef);
         setIsBookmarked(snap.exists());
       } catch (err) {
-        console.error("Gagal memverifikasi markah:", err);
+        console.error("Gagal cek bookmark:", err);
       }
     };
     checkBookmark();
   }, [user, slug]);
 
+  /* ─── Fetch Detail ─── */
   useEffect(() => {
     if (!slug) return;
     async function load() {
@@ -438,7 +485,7 @@ export default function DetailPage() {
         const normalized: MangaDetail = {
           title: raw.title || "Judul Tidak Tersedia",
           alternative_title: raw.alternative_title,
-          thumb: cleanThumb(raw.thumb),
+          thumb: cleanThumb(raw.thumb || raw.thumbnail || ""),
           rating: raw.rating,
           status: raw.status,
           type: raw.type,
@@ -446,20 +493,21 @@ export default function DetailPage() {
           artist: raw.artist || raw.artists?.[0],
           genres: raw.genres || [],
           synopsis: raw.synopsis || "Sinopsis belum tersedia untuk seri ini.",
-          chapters: (raw.chapters || []).map((c: any) => ({
-            index: c.index,
+          chapters: (raw.chapters || []).map((c: any, idx: number) => ({
+            index: c.index ?? idx,
             chapter_url: c.chapter_url || c.link,
-            chapter_number: c.chapter_number || c.chapter,
+            chapter_number: c.chapter_number || c.chapter || `Ch. ${idx + 1}`,
             release_date: c.release_date,
-            slug: c.slug,
+            slug: c.slug || c.chapter_slug || "",
             views: c.views || "0",
             pages: c.pages || 0,
           })),
           views: raw.views || "0",
           followers: raw.followers || "0",
-          release_year: raw.release_year || raw.year,
-          total_chapters: raw.total_chapters || (raw.chapters || []).length,
-          updated_at: raw.updated_at || raw.last_updated,
+          release_year: raw.release_year || raw.year || raw.released,
+          total_chapters: raw.total_chapters,
+          updated_at: raw.updated_at || raw.last_updated || raw.updated_on,
+          related_series: raw.related_series || raw.recommendations || [],
         };
 
         setData(normalized);
@@ -471,6 +519,18 @@ export default function DetailPage() {
     }
     load();
   }, [slug]);
+
+  /* ─── Auto Scroll to Last Read ─── */
+  useEffect(() => {
+    if (activeTab === "chapters" && lastReadChapter) {
+      setTimeout(() => {
+        const chapterElement = document.getElementById(`chapter-${lastReadChapter}`);
+        if (chapterElement) {
+          chapterElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 500);
+    }
+  }, [activeTab, showAllChapters, lastReadChapter]);
 
   const markChapterAsRead = useCallback((chapterSlug: string) => {
     setReadChapters((prev) => {
@@ -497,20 +557,19 @@ export default function DetailPage() {
         await deleteDoc(docRef);
       } else {
         setIsBookmarked(true);
-        const payload = {
+        await setDoc(docRef, {
           id: slug,
-          slug: slug,
+          slug,
           title: data.title,
           thumb: data.thumb,
           type: data.type || "MANHWA",
           rating: data.rating || "0",
           latest_chapter: data.chapters[0]?.chapter_number || "Ch. ?",
           savedAt: Date.now(),
-        };
-        await setDoc(docRef, payload);
+        });
       }
     } catch (err) {
-      console.error("Gagal menyimpan markah:", err);
+      console.error("Gagal bookmark:", err);
       setIsBookmarked(!isBookmarked);
     }
   };
@@ -546,13 +605,29 @@ export default function DetailPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Filter dan sorting chapters (di-memo)
+  /* ─── Chapter Number Extractor ─── */
+  const getChapterNumberValue = useCallback((chapter: ChapterItem): number => {
+    const num = chapter.chapter_number?.match(/(\d+(?:\.\d+)?)/);
+    if (num) return parseFloat(num[0]);
+
+    const lower = chapter.chapter_number?.toLowerCase() || "";
+    if (lower.includes("prologue")) return -2;
+    if (lower.includes("epilogue")) return 999999;
+    if (lower.includes("side")) return 999998;
+    if (lower.includes("extra")) return 999997;
+    if (lower.includes("special")) return 999996;
+    return 0;
+  }, []);
+
+  /* ─── Filter & Sort Chapters ─── */
   const filteredChapters = useMemo(() => {
     if (!data) return [];
+    if (!chapterFilter.trim()) return data.chapters;
+    const q = chapterFilter.toLowerCase();
     return data.chapters.filter(
       (ch) =>
-        ch.chapter_number.toLowerCase().includes(chapterFilter.toLowerCase()) ||
-        (ch.release_date && ch.release_date.toLowerCase().includes(chapterFilter.toLowerCase()))
+        ch.chapter_number.toLowerCase().includes(q) ||
+        (ch.release_date && ch.release_date.toLowerCase().includes(q))
     );
   }, [data, chapterFilter]);
 
@@ -560,440 +635,440 @@ export default function DetailPage() {
     return [...filteredChapters].sort((a, b) => {
       const aVal = getChapterNumberValue(a);
       const bVal = getChapterNumberValue(b);
-      if (chapterSort === "newest") {
-        return bVal - aVal;
-      }
-      return aVal - bVal;
+      return chapterSort === "newest" ? bVal - aVal : aVal - bVal;
     });
   }, [filteredChapters, chapterSort, getChapterNumberValue]);
 
-  // Bab terbaru (untuk tombol utama)
   const latestChapter = useMemo(() => {
     if (!data || data.chapters.length === 0) return null;
-    const allSorted = [...data.chapters].sort((a, b) => {
-      return getChapterNumberValue(b) - getChapterNumberValue(a);
-    });
-    return allSorted[0];
+    return [...data.chapters].sort((a, b) => getChapterNumberValue(b) - getChapterNumberValue(a))[0];
   }, [data, getChapterNumberValue]);
 
-  // ─── Kalkulasi Total Bab Realistis ───
+  const continueReadingChapter = lastReadChapter
+    ? data?.chapters.find((ch) => ch.slug === lastReadChapter)
+    : null;
+
+  /* ─── FIX: Total chapters (Smart Parsing) ─── */
   const displayTotalChapters = useMemo(() => {
     if (!data) return 0;
-    if (latestChapter) {
-      const maxVal = getChapterNumberValue(latestChapter);
-      // Gunakan nilai terbesar: apakah jumlah array (misal ada chapter bonus/0) atau nomor chapter tertinggi (agar Fix)
-      return Math.max(maxVal, data.chapters.length);
-    }
-    return data.total_chapters || data.chapters.length;
-  }, [data, latestChapter, getChapterNumberValue]);
+    if (data.total_chapters && data.total_chapters > 0) return data.total_chapters;
+    
+    let maxChapter = 0;
+    data.chapters.forEach((ch) => {
+      const numMatch = ch.chapter_number?.match(/(\d+(?:\.\d+)?)/);
+      if (numMatch) {
+        const parsed = parseFloat(numMatch[0]);
+        if (parsed > maxChapter) maxChapter = parsed;
+      }
+    });
+
+    return maxChapter > 0 ? Math.floor(maxChapter) : data.chapters.length;
+  }, [data]);
 
   const shownChapters = showAllChapters ? sortedChapters : sortedChapters.slice(0, 15);
 
-  const continueReadingChapter = lastReadChapter ? data?.chapters.find((ch) => ch.slug === lastReadChapter) : null;
+  /* ─── Derived Data ─── */
+  const genres: string[] = useMemo(
+    () => (data?.genres || []).map((g: any) => (typeof g === "string" ? g : g.name)).filter(Boolean),
+    [data]
+  );
+  const authors = data?.author ? [data.author] : data?.authors || [];
+  const artists = data?.artist ? [data.artist] : data?.artists || [];
 
+  /* ─── Loading State ─── */
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] text-white">
-        <div className="relative h-[40vh] md:h-[50vh] w-full overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a2e] to-[#0a0a0f] animate-pulse" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0f] via-transparent to-transparent" />
+      <div className="min-h-screen bg-[#0a0a0a] text-white">
+        <div className="relative h-[45vh] w-full overflow-hidden">
+          <div className="absolute inset-0 bg-[#141414] animate-pulse" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] to-transparent" />
         </div>
         <div className="px-4 -mt-32 relative z-10 max-w-4xl mx-auto space-y-4">
-          <div className="flex gap-6">
-            <div className="w-40 md:w-52 aspect-[3/4] rounded-2xl bg-[#1c1c24] animate-pulse shadow-2xl" />
+          <div className="flex gap-5">
+            <div className="w-36 md:w-48 aspect-[3/4] rounded-2xl bg-[#141414] animate-pulse" />
             <div className="flex-1 space-y-3 pt-16">
-              <div className="h-8 bg-[#1c1c24] rounded-lg w-3/4 animate-pulse" />
-              <div className="h-4 bg-[#1c1c24] rounded-lg w-1/2 animate-pulse" />
+              <div className="h-8 bg-[#141414] rounded-lg w-3/4 animate-pulse" />
+              <div className="h-4 bg-[#141414] rounded-lg w-1/2 animate-pulse" />
               <div className="flex gap-2 mt-4">
-                <div className="h-6 w-20 bg-[#1c1c24] rounded-full animate-pulse" />
-                <div className="h-6 w-24 bg-[#1c1c24] rounded-full animate-pulse" />
+                <div className="h-6 w-20 bg-[#141414] rounded-full animate-pulse" />
+                <div className="h-6 w-24 bg-[#141414] rounded-full animate-pulse" />
               </div>
             </div>
           </div>
-          <div className="h-32 bg-[#1c1c24]/80 rounded-2xl animate-pulse" />
-          <div className="h-64 bg-[#1c1c24]/80 rounded-2xl animate-pulse" />
+          <div className="h-32 bg-[#141414] rounded-2xl animate-pulse" />
+          <div className="h-64 bg-[#141414] rounded-2xl animate-pulse" />
         </div>
       </div>
     );
   }
 
+  /* ─── Error State ─── */
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center p-6">
-        <Glass className="p-8 text-center max-w-md w-full">
-          <div className="w-20 h-20 bg-gradient-to-br from-red-500/20 to-rose-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6 ring-1 ring-red-500/20">
-            <Sparkles className="text-red-400 w-8 h-8" />
+      <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center p-6">
+        <Card className="p-8 text-center max-w-md w-full border-none shadow-none">
+          <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Sparkles className="text-red-400 w-7 h-7" />
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">Oops!</h3>
-          <p className="text-red-400/80 mb-8 font-medium">{error || "Informasi seri tidak ditemukan."}</p>
+          <h3 className="text-lg font-bold text-white mb-2">Gagal Memuat</h3>
+          <p className="text-red-400/80 mb-6 text-sm">{error || "Data tidak ditemukan."}</p>
           <button
             onClick={handleBack}
-            className="w-full py-3.5 bg-white/10 hover:bg-white/15 rounded-xl transition font-bold flex items-center justify-center gap-2 group"
+            className="w-full py-3 bg-[#1c1c1c] hover:bg-[#262626] rounded-xl transition font-semibold flex items-center justify-center gap-2 text-sm"
           >
-            <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-            Kembali
+            <ArrowLeft size={16} /> Kembali
           </button>
-        </Glass>
+        </Card>
       </div>
     );
   }
 
-  const genres: string[] = (data.genres || []).map((g: any) => (typeof g === "string" ? g : g.name));
-  const authors = data.author ? [data.author] : data.authors || [];
-  const artists = data.artist ? [data.artist] : data.artists || [];
-
   return (
-    <main className="min-h-screen bg-[#0a0a0f] text-gray-100 selection:bg-white/10 font-sans pb-24 overflow-x-hidden">
-      {/* ═══ Notification Toast ═══ */}
+    <main className="min-h-screen bg-[#0a0a0a] text-neutral-100 selection:bg-white/10 pb-24 overflow-x-hidden">
+      {/* Toast Notification */}
       {showNotification && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 fade-in duration-300">
-          <div className="bg-[#1c1c24]/95 backdrop-blur-xl border border-white/10 rounded-xl px-6 py-3 shadow-2xl flex items-center gap-3">
-            <Info className={`w-5 h-5 ${accentStyle.text}`} />
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-2 fade-in duration-200">
+          <div className="bg-[#141414] border border-white/5 rounded-xl px-5 py-3 shadow-xl flex items-center gap-3">
+            <Info className={cn("w-5 h-5", accentStyle.text)} />
             <span className="text-sm font-medium">Silakan login untuk menyimpan ke koleksi</span>
-            <button onClick={() => setShowNotification(false)} className="ml-2 hover:text-white text-gray-400">
+            <button onClick={() => setShowNotification(false)} className="ml-2 hover:text-white text-neutral-400">
               <X size={16} />
             </button>
           </div>
         </div>
       )}
 
-      {/* ═══ Share Modal ═══ */}
+      {/* Share Modal */}
       {showShareModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <Glass className="w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold">Bagikan Seri</h3>
-              <button onClick={() => setShowShareModal(false)} className="p-2 hover:bg-white/5 rounded-lg transition">
-                <X size={20} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <Card className="w-full max-w-sm p-6 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-base font-bold">Bagikan Seri</h3>
+              <button onClick={() => setShowShareModal(false)} className="p-2 hover:bg-[#1c1c1c] rounded-lg transition">
+                <X size={18} />
               </button>
             </div>
             <div className="space-y-3">
               <button
                 onClick={copyToClipboard}
-                className="w-full flex items-center gap-3 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition border border-white/5"
+                className="w-full flex items-center gap-3 p-3.5 rounded-xl bg-[#1c1c1c] hover:bg-[#262626] transition border border-white/5"
               >
-                {copied ? <CheckCircle2 className="text-emerald-400" size={20} /> : <Copy size={20} className="text-gray-400" />}
-                <span className="font-medium">{copied ? "Tersalin!" : "Salin Link"}</span>
+                {copied ? <CheckCircle2 className="text-emerald-400" size={18} /> : <Copy size={18} className="text-neutral-400" />}
+                <span className="text-sm font-medium">{copied ? "Tersalin!" : "Salin Link"}</span>
               </button>
-              <div className="grid grid-cols-3 gap-3">
-                {["Twitter", "Facebook", "WhatsApp"].map((platform) => (
-                  <button
-                    key={platform}
-                    className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition border border-white/5 text-xs font-bold"
-                  >
-                    {platform}
-                  </button>
-                ))}
-              </div>
             </div>
-          </Glass>
+          </Card>
         </div>
       )}
 
-      {/* ═══ Latar Belakang Cover (Hero) ═══ */}
-      <section className="relative h-[45vh] md:h-[55vh] w-full overflow-hidden">
+      {/* Hero Section */}
+      <section className="relative h-[45vh] md:h-[50vh] w-full overflow-hidden">
         <div className="absolute inset-0">
-          <SafeImage
-            src={cleanThumbHero(data.thumb) || "/no-image.png"}
+          <SmartImage
+            src={data.thumb || "/no-image.png"}
             alt={data.title}
+            title={data.title}
             fill
-            className="object-cover object-center scale-110 blur-xl opacity-40"
+            className="object-cover opacity-55 scale-100 blur-xl transform-gpu"
             priority
           />
         </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-transparent" />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0f] via-[#0a0a0f]/70 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-transparent" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-black/40 via-transparent to-transparent" />
-
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-white/20 rounded-full animate-pulse" />
-          <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 bg-white/10 rounded-full animate-pulse delay-700" />
-          <div className="absolute bottom-1/3 left-1/2 w-1 h-1 bg-white/20 rounded-full animate-pulse delay-1000" />
-        </div>
-
+        {/* Header Controls */}
         <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-20">
           <button
             onClick={handleBack}
-            className="w-11 h-11 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 hover:bg-white/10 transition active:scale-95 shadow-lg group"
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-[#141414]/80 backdrop-blur-sm border border-white/5 hover:bg-[#1c1c1c] transition active:scale-95"
           >
-            <ArrowLeft size={20} className="text-white group-hover:-translate-x-0.5 transition-transform" />
+            <ArrowLeft size={18} className="text-white" />
           </button>
 
           <div className="flex gap-2">
             <button
               onClick={() => setIsLiked(!isLiked)}
-              className={`w-11 h-11 flex items-center justify-center rounded-full backdrop-blur-md border transition active:scale-95 shadow-lg ${
-                isLiked ? "bg-rose-500/20 border-rose-500/30 text-rose-400" : "bg-black/40 border-white/10 hover:bg-white/10 text-white"
-              }`}
+              className={cn(
+                "w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-sm border transition active:scale-95",
+                isLiked
+                  ? "bg-rose-500/20 border-rose-500/30 text-rose-500"
+                  : "bg-[#141414]/80 border-white/5 hover:bg-[#1c1c1c] text-white"
+              )}
             >
-              <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
+              <Heart size={16} fill={isLiked ? "currentColor" : "none"} />
             </button>
-
             <button
               onClick={handleShare}
-              className="w-11 h-11 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 hover:bg-white/10 transition active:scale-95 shadow-lg"
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-[#141414]/80 backdrop-blur-sm border border-white/5 hover:bg-[#1c1c1c] transition active:scale-95"
             >
-              <Share2 size={18} className="text-white" />
+              <Share2 size={16} className="text-white" />
             </button>
-
-            <button
-              onClick={() => setShowSettings(!showSettings)}
-              className="w-11 h-11 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 hover:bg-white/10 transition active:scale-95 shadow-lg"
-            >
-              <MoreHorizontal size={18} className="text-white" />
-            </button>
+            <div className="relative" ref={settingsRef}>
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className="w-10 h-10 flex items-center justify-center rounded-full bg-[#141414]/80 backdrop-blur-sm border border-white/5 hover:bg-[#1c1c1c] transition active:scale-95"
+              >
+                <MoreHorizontal size={16} className="text-white" />
+              </button>
+              {showSettings && (
+                <div className="absolute top-12 right-0 z-30 w-56 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <Card className="p-4 space-y-4 shadow-2xl">
+                    <div>
+                      <p className="text-[10px] font-bold text-neutral-500 uppercase mb-2">Mode Baca</p>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {[
+                          { mode: "vertical" as const, icon: ArrowDown, label: "Vertikal" },
+                          { mode: "horizontal" as const, icon: ArrowLeftIcon, label: "Horizontal" },
+                          { mode: "webtoon" as const, icon: Monitor, label: "Webtoon" },
+                        ].map(({ mode, icon: Icon, label }) => (
+                          <button
+                            key={mode}
+                            onClick={() => {
+                              setReadingMode(mode);
+                              localStorage.setItem(THEME_KEY, mode);
+                            }}
+                            className={cn(
+                              "p-2 rounded-lg text-[10px] font-bold flex flex-col items-center gap-1 transition border",
+                              readingMode === mode
+                                ? cn(accentStyle.bg + "/10", accentStyle.text, "border-transparent")
+                                : "bg-[#1c1c1c] text-neutral-400 border-white/5 hover:bg-[#262626]"
+                            )}
+                          >
+                            <Icon size={14} />
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-neutral-500 uppercase mb-2">Kualitas</p>
+                      <div className="flex gap-1.5">
+                        {(["high", "medium", "low"] as const).map((q) => (
+                          <button
+                            key={q}
+                            onClick={() => setImageQuality(q)}
+                            className={cn(
+                              "flex-1 py-2 rounded-lg text-[10px] font-bold transition border",
+                              imageQuality === q
+                                ? cn(accentStyle.bg + "/10", accentStyle.text, "border-transparent")
+                                : "bg-[#1c1c1c] text-neutral-400 border-white/5 hover:bg-[#262626]"
+                            )}
+                          >
+                            {q === "high" ? "Tinggi" : q === "medium" ? "Sedang" : "Rendah"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
-        {showSettings && (
-          <div className="absolute top-16 right-4 z-30 animate-in slide-in-from-top-2 fade-in duration-200">
-            <Glass className="w-64 p-4 space-y-4">
-              <div>
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Mode Baca</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { mode: "vertical" as const, icon: ArrowDown, label: "Vertikal" },
-                    { mode: "horizontal" as const, icon: ArrowLeftIcon, label: "Horizontal" },
-                    { mode: "webtoon" as const, icon: Monitor, label: "Webtoon" },
-                  ].map(({ mode, icon: Icon, label }) => (
-                    <button
-                      key={mode}
-                      onClick={() => {
-                        setReadingMode(mode);
-                        localStorage.setItem(THEME_KEY, mode);
-                      }}
-                      className={`p-2 rounded-lg text-[10px] font-bold flex flex-col items-center gap-1 transition ${
-                        readingMode === mode
-                          ? `${accentStyle.soft} ${accentStyle.text} ${accentStyle.border}`
-                          : "bg-white/5 text-gray-400 border border-white/5 hover:bg-white/10"
-                      }`}
-                    >
-                      <Icon size={14} />
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Kualitas Gambar</p>
-                <div className="flex gap-2">
-                  {(["high", "medium", "low"] as const).map((q) => (
-                    <button
-                      key={q}
-                      onClick={() => setImageQuality(q)}
-                      className={`flex-1 py-2 rounded-lg text-[10px] font-bold transition ${
-                        imageQuality === q ? `${accentStyle.soft} ${accentStyle.text} ${accentStyle.border}` : "bg-white/5 text-gray-400 border border-white/5 hover:bg-white/10"
-                      }`}
-                    >
-                      {q === "high" ? "Tinggi" : q === "medium" ? "Sedang" : "Rendah"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </Glass>
-          </div>
-        )}
       </section>
 
-      {/* ═══ Konten Utama ═══ */}
-      <div className="px-4 -mt-36 md:-mt-48 relative z-10 max-w-4xl mx-auto space-y-6">
-        {/* ── Profile Card ── */}
+      {/* Main Content */}
+      <div className="px-4 -mt-28 md:-mt-36 relative z-10 max-w-4xl mx-auto space-y-5">
+        {/* Profile Card */}
         <FadeIn delay={100}>
-          <div className="flex gap-5 md:gap-8 items-end">
-            <div className="shrink-0 w-36 md:w-48 aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl shadow-black/80 ring-2 ring-white/10 relative bg-[#1e1e24] z-20 group">
-              <SafeImage src={data.thumb || "/no-image.png"} alt={data.title} fill className="object-cover transition-transform duration-500 group-hover:scale-105" priority />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-
+          <div className="flex gap-4 md:gap-6 items-end">
+            <div className="shrink-0 w-32 md:w-44 aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl shadow-black/80 border border-white/5 relative bg-[#141414] z-20 group">
+              <SmartImage
+                src={data.thumb || "/no-image.png"}
+                alt={data.title}
+                title={data.title}
+                fill
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
+                priority
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               {data.type && (
-                <div className="absolute top-3 left-3 z-30">
-                  <Badge variant="primary" icon={<Zap size={10} />}>
-                    {data.type}
-                  </Badge>
+                <div className="absolute top-2.5 left-2.5 z-30">
+                  <Badge variant="primary" icon={<Zap size={10} />}>{data.type}</Badge>
                 </div>
               )}
-
-              {data.rating && data.rating !== "0" && data.rating !== "N/A" ? (
-                <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg z-30">
-                  <Star size={12} className="text-amber-400 fill-amber-400" />
-                  <span className="text-xs font-bold text-white">{data.rating}</span>
+              {data.rating && data.rating !== "0" && data.rating !== "N/A" && (
+                <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1 bg-[#141414]/90 backdrop-blur-sm border border-white/5 px-2 py-1 rounded-lg z-30">
+                  <Star size={11} className="text-amber-400 fill-amber-400" />
+                  <span className="text-[11px] font-bold text-white">{data.rating}</span>
                 </div>
-              ) : null}
+              )}
             </div>
 
-            <div className="flex-1 min-w-0 pb-2">
-              <div className="flex items-center gap-2 mb-2">
+            <div className="flex-1 min-w-0 pb-1">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
                 {data.status && (
-                  <Badge variant="success" icon={<Activity size={10} />}>
-                    {data.status}
-                  </Badge>
+                  <Badge variant="success" icon={<Activity size={10} />}>{data.status}</Badge>
                 )}
                 {data.release_year && (
-                  <Badge variant="info" icon={<Calendar size={10} />}>
-                    {data.release_year}
-                  </Badge>
+                  <Badge variant="info" icon={<Calendar size={10} />}>{data.release_year}</Badge>
                 )}
               </div>
 
-              <h1 className="text-2xl md:text-4xl font-black leading-tight text-white drop-shadow-lg tracking-tight">{data.title}</h1>
+              <h1 className="text-xl md:text-3xl font-extrabold leading-tight text-white tracking-tight">
+                {data.title}
+              </h1>
 
               {data.alternative_title && (
-                <p className="text-xs md:text-sm text-gray-400 mt-2 line-clamp-1 font-medium">{data.alternative_title}</p>
+                <p className="text-xs text-neutral-500 mt-1.5 line-clamp-1 font-medium">{data.alternative_title}</p>
               )}
 
-              <div className="flex flex-wrap gap-3 mt-4">
-                {data.views && data.views !== "0" ? (
-                  <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                    <Eye size={14} className={accentStyle.text} />
-                    <span className="font-bold">{data.views}</span>
-                    <span className="text-gray-600">x dilihat</span>
+              <div className="flex flex-wrap gap-3 mt-3">
+                {data.views && data.views !== "0" && (
+                  <div className="flex items-center gap-1.5 text-xs text-neutral-400">
+                    <Eye size={13} className={accentStyle.text} />
+                    <span className="font-semibold">{data.views}</span>
+                    <span className="text-neutral-600">dilihat</span>
                   </div>
-                ) : null}
-                {data.followers && data.followers !== "0" ? (
-                  <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                    <Users size={14} className="text-rose-400" />
-                    <span className="font-bold">{data.followers}</span>
-                    <span className="text-gray-600">pengikut</span>
+                )}
+                {data.followers && data.followers !== "0" && (
+                  <div className="flex items-center gap-1.5 text-xs text-neutral-400">
+                    <Users size={13} className="text-rose-400" />
+                    <span className="font-semibold">{data.followers}</span>
+                    <span className="text-neutral-600">pengikut</span>
                   </div>
-                ) : null}
+                )}
               </div>
             </div>
           </div>
         </FadeIn>
 
-        {/* ── Action Buttons ── */}
-        <FadeIn delay={200}>
-          <div className="flex gap-3 mt-2">
+        {/* Action Buttons */}
+        <FadeIn delay={150}>
+          <div className="flex gap-2.5">
             {continueReadingChapter ? (
               <Link
                 href={`/read/${continueReadingChapter.slug}`}
+                prefetch={false}
                 onClick={() => markChapterAsRead(continueReadingChapter.slug)}
-                className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-xl bg-gradient-to-r ${accentStyle.gradient} text-white font-bold transition shadow-lg ${accentStyle.glow} active:scale-[0.98] group`}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-bold text-sm transition active:scale-[0.98]",
+                  accentStyle.bg
+                )}
               >
-                <Play size={18} className="group-hover:scale-110 transition-transform" />
-                Lanjutkan {continueReadingChapter.chapter_number}
+                <Play size={17} fill="white" /> Lanjutkan {continueReadingChapter.chapter_number}
               </Link>
             ) : latestChapter ? (
               <Link
                 href={`/read/${latestChapter.slug}`}
+                prefetch={false}
                 onClick={() => markChapterAsRead(latestChapter.slug)}
-                className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-xl bg-gradient-to-r ${accentStyle.gradient} text-white font-bold transition shadow-lg ${accentStyle.glow} active:scale-[0.98] group`}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-bold text-sm transition active:scale-[0.98]",
+                  accentStyle.bg
+                )}
               >
-                <BookOpen size={18} />
-                Mulai Membaca
+                <BookOpen size={17} /> Baca Sekarang
               </Link>
             ) : (
-              <div className="flex-1 py-4 rounded-xl bg-white/5 text-gray-500 font-bold text-center">Tidak ada bab tersedia</div>
+              <div className="flex-1 py-3.5 rounded-xl bg-[#141414] text-neutral-500 font-bold text-center text-sm border border-white/5">
+                Tidak ada bab
+              </div>
             )}
 
             <button
               onClick={toggleBookmark}
-              className={`flex-shrink-0 w-14 flex items-center justify-center rounded-xl border transition active:scale-95 ${
+              className={cn(
+                "w-12 flex items-center justify-center rounded-xl border transition active:scale-95",
                 isBookmarked
-                  ? "bg-rose-500/10 border-rose-500/30 text-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.15)]"
-                  : "bg-white/5 border-white/10 hover:bg-white/10 text-gray-300 hover:text-white"
-              }`}
+                  ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                  : "bg-[#141414] border-white/5 text-neutral-400 hover:bg-[#1c1c1c]"
+              )}
             >
-              {isBookmarked ? <BookmarkCheck size={24} /> : <Bookmark size={24} />}
-            </button>
-
-            <button
-              onClick={() => setShowShareModal(true)}
-              className="flex-shrink-0 w-14 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-gray-300 hover:text-white transition active:scale-95"
-            >
-              <Share2 size={20} />
+              {isBookmarked ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
             </button>
           </div>
         </FadeIn>
 
-        {/* ── Stats Grid ── */}
-        <FadeIn delay={300}>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatCard icon={<User size={16} />} label="Penulis" value={authors[0] || "-"} color="primary" />
-            <StatCard icon={<Paintbrush size={16} />} label="Ilustrator" value={artists[0] || "-"} color="emerald" />
-            <StatCard icon={<Hash size={16} />} label="Total Bab" value={String(displayTotalChapters)} color="amber" />
-            <StatCard icon={<Clock size={16} />} label="Diperbarui" value={data.updated_at || "Baru saja"} color="sky" />
+        {/* Stats */}
+        <FadeIn delay={200}>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            <StatCard icon={<User size={15} />} label="Penulis" value={authors[0] || "-"} color="primary" />
+            <StatCard icon={<Paintbrush size={15} />} label="Ilustrator" value={artists[0] || "-"} color="emerald" />
+            <StatCard icon={<Hash size={15} />} label="Total Bab" value={String(displayTotalChapters)} color="amber" />
+            <StatCard icon={<Clock size={15} />} label="Update" value={data.updated_at || "Baru saja"} color="sky" />
           </div>
         </FadeIn>
 
-        {/* ── Synopsis ── */}
-        <FadeIn delay={400}>
-          <Glass hover>
-            <div className="p-5 md:p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <div className={`w-8 h-8 rounded-lg ${accentStyle.soft} flex items-center justify-center`}>
-                  <BookOpen size={16} className={accentStyle.text} />
+        {/* Synopsis */}
+        <FadeIn delay={250}>
+          <Card hover>
+            <div className="p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center", accentStyle.bg + "/10")}>
+                  <BookOpen size={14} className={accentStyle.text} />
                 </div>
-                <h2 className="text-sm font-bold text-gray-200 uppercase tracking-wider">Sinopsis</h2>
+                <h2 className="text-sm font-bold text-neutral-200">Sinopsis</h2>
               </div>
 
               <div className="relative">
-                <p className={`text-sm text-gray-300 leading-[1.8] font-medium ${!showFullSynopsis && data.synopsis.length > 200 ? "line-clamp-4" : ""}`}>{data.synopsis}</p>
-
-                {!showFullSynopsis && data.synopsis.length > 200 && <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#16161e] to-transparent" />}
+                <p className={cn(
+                  "text-sm text-neutral-400 leading-relaxed font-medium",
+                  !showFullSynopsis && data.synopsis.length > 180 && "line-clamp-4"
+                )}>
+                  {data.synopsis}
+                </p>
+                {!showFullSynopsis && data.synopsis.length > 180 && (
+                  <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[#141414] to-transparent" />
+                )}
               </div>
 
-              {data.synopsis.length > 200 && (
+              {data.synopsis.length > 180 && (
                 <button
-                  onClick={() => setShowFullSynopsis((s) => !s)}
-                  className={`mt-4 text-xs font-bold ${accentStyle.text} hover:brightness-125 transition flex items-center gap-1.5 group`}
+                  onClick={() => setShowFullSynopsis(!showFullSynopsis)}
+                  className={cn("mt-3 text-xs font-bold flex items-center gap-1 transition", accentStyle.text)}
                 >
                   {showFullSynopsis ? "Sembunyikan" : "Baca Selengkapnya"}
-                  {showFullSynopsis ? (
-                    <ChevronUp size={14} className="group-hover:-translate-y-0.5 transition-transform" />
-                  ) : (
-                    <ChevronDown size={14} className="group-hover:translate-y-0.5 transition-transform" />
-                  )}
+                  {showFullSynopsis ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </button>
               )}
             </div>
-          </Glass>
+          </Card>
         </FadeIn>
 
-        {/* ── Genres ── */}
-        {genres.length > 0 ? (
-          <FadeIn delay={500}>
-            <Glass hover>
-              <div className="p-5 md:p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className={`w-8 h-8 rounded-lg ${accentStyle.soft} flex items-center justify-center`}>
-                    <Tag size={16} className={accentStyle.text} />
+        {/* Genres */}
+        {genres.length > 0 && (
+          <FadeIn delay={300}>
+            <Card hover>
+              <div className="p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center", accentStyle.bg + "/10")}>
+                    <Tag size={14} className={accentStyle.text} />
                   </div>
-                  <h2 className="text-sm font-bold text-gray-200 uppercase tracking-wider">Genre</h2>
+                  <h2 className="text-sm font-bold text-neutral-200">Genre</h2>
                 </div>
-
                 <div className="flex flex-wrap gap-2">
                   {genres.map((g, i) => (
                     <span
                       key={i}
-                      className="px-4 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06] text-xs font-bold text-gray-300 hover:bg-white/10 hover:text-white transition-all duration-300 cursor-pointer active:scale-95"
+                      className="px-3 py-1.5 rounded-lg bg-[#1c1c1c] border border-white/5 text-xs font-semibold text-neutral-400 hover:bg-[#262626] hover:text-white transition-all active:scale-95 cursor-pointer"
                     >
                       {g}
                     </span>
                   ))}
                 </div>
               </div>
-            </Glass>
+            </Card>
           </FadeIn>
-        ) : null}
+        )}
 
-        {/* ── Tabs Navigation ── */}
-        <FadeIn delay={600}>
-          <div className="flex gap-1 p-1 bg-white/[0.03] rounded-xl border border-white/[0.06]">
+        {/* Tabs */}
+        <FadeIn delay={350}>
+          <div className="flex gap-1 p-1 bg-[#141414] rounded-xl border border-white/5">
             {[
               { id: "chapters" as const, label: "Daftar Bab", icon: Layers },
-              { id: "info" as const, label: "Informasi", icon: Info },
-              { id: "related" as const, label: "Seri Serupa", icon: TrendingUp },
+              { id: "info" as const, label: "Detail", icon: Info },
+              { id: "related" as const, label: "Serupa", icon: TrendingUp },
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs font-bold transition-all duration-300 ${
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-all",
                   activeTab === tab.id
-                    ? `${accentStyle.soft} ${accentStyle.text} ${accentStyle.border}`
-                    : "text-gray-500 hover:text-gray-300 hover:bg-white/[0.02]"
-                }`}
+                    ? cn(accentStyle.bg + "/10", accentStyle.text, "border-transparent bg-[#1c1c1c]")
+                    : "text-neutral-500 hover:text-neutral-300 hover:bg-[#1c1c1c]"
+                )}
               >
                 <tab.icon size={14} />
                 {tab.label}
@@ -1002,245 +1077,256 @@ export default function DetailPage() {
           </div>
         </FadeIn>
 
-        {/* ── Chapters Tab ── */}
+        {/* Chapters Tab */}
         {activeTab === "chapters" && (
-          <FadeIn delay={100}>
-            <Glass className="overflow-hidden">
-              <div className="p-5 border-b border-white/[0.06] flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/[0.02]">
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-lg ${accentStyle.soft} flex items-center justify-center`}>
-                    <Layers size={16} className={accentStyle.text} />
+          <FadeIn>
+            <Card className="overflow-hidden">
+              <div className="p-4 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[#141414]">
+                <div className="flex items-center gap-2.5">
+                  <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center", accentStyle.bg + "/10")}>
+                    <Layers size={14} className={accentStyle.text} />
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold text-gray-200 uppercase tracking-wider">Daftar Bab</h2>
-                    <p className="text-[10px] text-gray-500 font-medium">{displayTotalChapters} bab tersedia</p>
+                    <h2 className="text-sm font-bold text-neutral-200">Daftar Bab</h2>
+                    <p className="text-[10px] text-neutral-500">{displayTotalChapters} bab tersedia</p>
                   </div>
                 </div>
 
                 <div className="flex gap-2">
                   <div className="relative">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
                     <input
                       type="text"
                       placeholder="Cari bab..."
                       value={chapterFilter}
                       onChange={(e) => setChapterFilter(e.target.value)}
-                      className="pl-9 pr-4 py-2 bg-white/[0.03] border border-white/[0.06] rounded-lg text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-white/30 focus:bg-white/[0.05] transition w-40 md:w-48"
+                      className="pl-8 pr-3 py-2 bg-[#1c1c1c] border border-white/5 rounded-lg text-xs text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-white/10 transition w-36"
                     />
                   </div>
-
                   <button
                     onClick={() => setChapterSort(chapterSort === "newest" ? "oldest" : "newest")}
-                    className="p-2 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] transition text-gray-400 hover:text-white"
+                    className="p-2 rounded-lg bg-[#1c1c1c] border border-white/5 hover:bg-[#262626] transition text-neutral-400 hover:text-white"
                     title={chapterSort === "newest" ? "Terbaru" : "Terlama"}
                   >
-                    {chapterSort === "newest" ? <SortDesc size={16} /> : <SortAsc size={16} />}
+                    {chapterSort === "newest" ? <SortDesc size={15} /> : <SortAsc size={15} />}
                   </button>
                 </div>
               </div>
 
-              <div className="max-h-[70vh] overflow-y-auto custom-scrollbar">
+              <div className="max-h-[65vh] overflow-y-auto custom-scrollbar bg-[#0a0a0a]" ref={chapterListRef}>
                 {shownChapters.length === 0 ? (
-                  <div className="p-8 text-center text-gray-500 text-sm">Tidak ada bab yang cocok dengan pencarian</div>
+                  <div className="p-8 text-center text-neutral-600 text-sm">Tidak ada bab yang cocok</div>
                 ) : (
                   shownChapters.map((ch, idx) => {
                     const isRead = readChapters.includes(ch.slug);
-                    const isLatest = chapterSort === "newest" && idx === 0;
+                    const isLatest = chapterSort === "newest" && idx === 0 && !chapterFilter;
                     const isLastRead = lastReadChapter === ch.slug;
 
                     return (
                       <Link
-                        key={ch.slug || idx}
+                        key={`${ch.slug}-${idx}`}
+                        id={`chapter-${ch.slug}`}
                         href={`/read/${ch.slug}`}
+                        prefetch={false}
                         onClick={() => markChapterAsRead(ch.slug)}
-                        className={`flex items-center justify-between px-5 py-4 transition border-b border-white/[0.04] last:border-0 group relative ${
-                          isRead ? "bg-black/20" : "hover:bg-white/[0.03] active:bg-white/[0.05]"
-                        } ${isLastRead ? `${accentStyle.soft} opacity-80` : ""}`}
+                        className={cn(
+                          "flex items-center justify-between px-4 py-3.5 transition border-b border-white/[0.02] last:border-0 group relative",
+                          isRead ? "bg-[#0a0a0a]" : "bg-[#141414] hover:bg-[#1c1c1c]",
+                          isLastRead && "bg-[#1c1c1c]"
+                        )}
                       >
-                        {isLastRead && <div className={`absolute left-0 top-0 bottom-0 w-0.5 ${accentStyle.bg}`} />}
+                        {isLastRead && <div className={cn("absolute left-0 top-0 bottom-0 w-[3px]", accentStyle.bg)} />}
 
-                        <div className="flex items-center gap-4 min-w-0 flex-1">
-                          <div
-                            className={`w-2 h-2 rounded-full shrink-0 ${
-                              isRead
-                                ? "bg-gray-600"
-                                : isLatest
-                                ? `${accentStyle.bg} shadow-lg ${accentStyle.glow} animate-pulse`
-                                : "bg-white/30"
-                            }`}
-                          />
+                        <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                          <div className={cn(
+                            "w-2 h-2 rounded-full shrink-0",
+                            isRead ? "bg-neutral-700" : isLatest ? cn(accentStyle.bg, "animate-pulse") : "bg-neutral-600"
+                          )} />
 
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className={`text-sm font-bold transition truncate ${isRead ? "text-gray-500" : "text-gray-200 group-hover:text-white"}`}>{ch.chapter_number}</p>
-
-                              {isLatest && (
-                                <Badge variant="primary" icon={<Flame size={8} />}>
-                                  Terbaru
-                                </Badge>
-                              )}
-
-                              {isLastRead && (
-                                <Badge variant="warning" icon={<Bookmark size={8} />}>
-                                  Terakhir Dibaca
-                                </Badge>
-                              )}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className={cn(
+                                "text-sm font-semibold transition truncate",
+                                isRead ? "text-neutral-500" : "text-neutral-300 group-hover:text-white"
+                              )}>
+                                {ch.chapter_number}
+                              </p>
+                              {isLatest && <Badge variant="primary" icon={<Flame size={8} />}>Baru</Badge>}
+                              {isLastRead && <Badge variant="warning" icon={<Bookmark size={8} />}>Terakhir</Badge>}
+                              {isRead && <Badge variant="success" icon={<Check size={8} />}>Selesai</Badge>}
                             </div>
 
                             <div className="flex items-center gap-3 mt-1">
-                              {ch.release_date ? (
-                                <span className={`text-[10px] font-medium flex items-center gap-1 ${isRead ? "text-gray-600" : "text-gray-500"}`}>
-                                  <Calendar size={10} />
-                                  {ch.release_date}
+                              {ch.release_date && (
+                                <span className="text-[10px] text-neutral-600 flex items-center gap-1">
+                                  <Calendar size={10} /> {ch.release_date}
                                 </span>
-                              ) : null}
-                              {ch.views && String(ch.views) !== "0" ? (
-                                <span className={`text-[10px] font-medium flex items-center gap-1 ${isRead ? "text-gray-600" : "text-gray-500"}`}>
-                                  <Eye size={10} />
-                                  {ch.views}
+                              )}
+                              {ch.views && String(ch.views) !== "0" && (
+                                <span className="text-[10px] text-neutral-600 flex items-center gap-1">
+                                  <Eye size={10} /> {ch.views}
                                 </span>
-                              ) : null}
-                              {ch.pages && ch.pages > 0 ? (
-                                <span className={`text-[10px] font-medium flex items-center gap-1 ${isRead ? "text-gray-600" : "text-gray-500"}`}>
-                                  <BookOpen size={10} />
-                                  {ch.pages} hal
-                                </span>
-                              ) : null}
+                              )}
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                          {isRead && (
-                            <span className="text-[10px] font-bold text-emerald-500/80 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">
-                              Selesai
-                            </span>
-                          )}
-                          <ChevronRight
-                            size={18}
-                            className={`shrink-0 transition ${
-                              isRead
-                                ? "text-gray-600"
-                                : `text-gray-500 ${
-                                    accent === "custom"
-                                      ? "group-hover:text-[var(--tsuki-custom-hex)]"
-                                      : accentStyle.text.replace("text-", "group-hover:text-")
-                                  } group-hover:translate-x-1`
-                            }`}
-                          />
-                        </div>
+                        <ChevronRight size={16} className={cn(
+                          "shrink-0 transition text-neutral-600",
+                          !isRead && "group-hover:translate-x-0.5"
+                        )} />
                       </Link>
                     );
                   })
                 )}
               </div>
 
-              {sortedChapters.length > 15 ? (
+              {sortedChapters.length > 15 && (
                 <button
-                  onClick={() => setShowAllChapters((s) => !s)}
-                  className={`w-full py-4 text-xs font-bold ${accentStyle.text} hover:brightness-125 bg-white/[0.02] hover:bg-white/[0.04] transition border-t border-white/[0.06] flex items-center justify-center gap-2 uppercase tracking-widest group`}
+                  onClick={() => setShowAllChapters(!showAllChapters)}
+                  className={cn(
+                    "w-full py-3.5 text-xs font-bold uppercase tracking-wide transition border-t border-white/5 flex items-center justify-center gap-1.5",
+                    accentStyle.text,
+                    "bg-[#141414] hover:bg-[#1c1c1c]"
+                  )}
                 >
                   {showAllChapters ? (
-                    <>
-                      <ChevronUp size={14} className="group-hover:-translate-y-0.5 transition-transform" />
-                      Tampilkan Lebih Sedikit
-                    </>
+                    <>Tampilkan Lebih Sedikit <ChevronUp size={14} /></>
                   ) : (
-                    <>
-                      <ChevronDown size={14} className="group-hover:translate-y-0.5 transition-transform" />
-                      Muat Semua Bab ({sortedChapters.length})
-                    </>
+                    <>Muat Semua Bab ({sortedChapters.length}) <ChevronDown size={14} /></>
                   )}
                 </button>
-              ) : null}
-            </Glass>
+              )}
+            </Card>
           </FadeIn>
         )}
 
-        {/* ── Info Tab ── */}
+        {/* Info Tab */}
         {activeTab === "info" && (
-          <FadeIn delay={100}>
+          <FadeIn>
             <div className="space-y-4">
-              <Glass hover className="p-5 md:p-6">
-                <h3 className="text-sm font-bold text-gray-200 uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <Info size={16} className={accentStyle.text} />
-                  Detail Seri
+              <Card hover className="p-5">
+                <h3 className="text-sm font-bold text-neutral-200 mb-4 flex items-center gap-2">
+                  <Info size={15} className={accentStyle.text} /> Detail Seri
                 </h3>
-
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {[
                     { label: "Judul", value: data.title },
-                    { label: "Judul Alternatif", value: data.alternative_title || "-" },
+                    { label: "Alternatif", value: data.alternative_title || "-" },
                     { label: "Status", value: data.status || "-" },
                     { label: "Tipe", value: data.type || "-" },
-                    { label: "Tahun Rilis", value: data.release_year || "-" },
+                    { label: "Tahun", value: data.release_year || "-" },
                     { label: "Total Bab", value: String(displayTotalChapters) },
                     { label: "Penulis", value: authors.join(", ") || "-" },
                     { label: "Ilustrator", value: artists.join(", ") || "-" },
                     { label: "Genre", value: genres.join(", ") || "-" },
                   ].map((item, i) => (
-                    <div key={i} className="flex justify-between items-center py-2 border-b border-white/[0.04] last:border-0">
-                      <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">{item.label}</span>
-                      <span className="text-sm text-gray-300 font-medium text-right max-w-[60%]">{item.value}</span>
+                    <div key={i} className="flex justify-between items-start py-2 border-b border-white/[0.02] last:border-0">
+                      <span className="text-[11px] text-neutral-600 font-bold uppercase">{item.label}</span>
+                      <span className="text-sm text-neutral-400 font-medium text-right max-w-[60%]">{item.value}</span>
                     </div>
                   ))}
                 </div>
-              </Glass>
+              </Card>
 
-              {readChapters.length > 0 ? (
-                <Glass hover className="p-5 md:p-6">
-                  <h3 className="text-sm font-bold text-gray-200 uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <Trophy size={16} className="text-amber-400" />
-                    Progress Membaca
+              {readChapters.length > 0 && (
+                <Card hover className="p-5">
+                  <h3 className="text-sm font-bold text-neutral-200 mb-4 flex items-center gap-2">
+                    <Trophy size={15} className="text-amber-400" /> Progress
                   </h3>
-
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-xs text-gray-400 mb-1">
-                      <span>
-                        {readChapters.length} dari {displayTotalChapters} bab
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs text-neutral-500">
+                      <span>{readChapters.length} dari {displayTotalChapters} bab</span>
+                      <span className={cn("font-bold", accentStyle.text)}>
+                        {Math.round((readChapters.length / Math.max(displayTotalChapters, 1)) * 100)}%
                       </span>
-                      <span className={`font-bold ${accentStyle.text}`}>{Math.round((readChapters.length / displayTotalChapters) * 100)}%</span>
                     </div>
-
-                    <div className="h-2 bg-white/[0.05] rounded-full overflow-hidden">
+                    <div className="h-2 bg-[#1c1c1c] rounded-full overflow-hidden">
                       <div
-                        className={`h-full bg-gradient-to-r ${accentStyle.gradient} rounded-full transition-all duration-1000 ease-out`}
-                        style={{ width: `${(readChapters.length / displayTotalChapters) * 100}%` }}
+                        className={cn("h-full rounded-full transition-all duration-700", accentStyle.bg)}
+                        style={{ width: `${(readChapters.length / Math.max(displayTotalChapters, 1)) * 100}%` }}
                       />
                     </div>
                   </div>
-                </Glass>
-              ) : null}
+                </Card>
+              )}
             </div>
           </FadeIn>
         )}
 
-        {/* ── Related Tab (Placeholder) ── */}
+        {/* Related Tab */}
         {activeTab === "related" && (
-          <FadeIn delay={100}>
-            <Glass className="p-8 text-center">
-              <div className={`w-16 h-16 ${accentStyle.soft} rounded-2xl flex items-center justify-center mx-auto mb-4`}>
-                <Sparkles className={`w-8 h-8 ${accentStyle.text}`} />
+          <FadeIn>
+            {data.related_series && data.related_series.length > 0 ? (
+              <div className="grid grid-cols-1 gap-3">
+                {data.related_series.map((item, i) => (
+                  <Link
+                    key={item.slug || i}
+                    href={`/detail/${item.slug}`}
+                    prefetch={false}
+                    className="group flex gap-3 p-3 rounded-xl bg-[#141414] border border-white/5 hover:bg-[#1c1c1c] active:scale-[0.98] transition"
+                  >
+                    <div className="relative w-20 h-28 shrink-0 rounded-lg overflow-hidden bg-[#1c1c1c]">
+                      <SmartImage
+                        src={cleanThumb(item.thumb || "")}
+                        alt={item.title}
+                        title={item.title}
+                        fill
+                        className="object-cover"
+                      />
+                      {item.type && (
+                        <span className={cn("absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold text-white uppercase", accentStyle.bg)}>
+                          {item.type}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 py-1">
+                      <h4 className="text-sm font-bold text-neutral-300 line-clamp-2 group-hover:text-white transition-colors">
+                        {item.title}
+                      </h4>
+                      <div className="flex items-center gap-2 mt-2 text-xs text-neutral-500">
+                        {item.latest_chapter && (
+                          <span className="flex items-center gap-1">
+                            <BookOpen size={12} /> {item.latest_chapter}
+                          </span>
+                        )}
+                        {item.rating && (
+                          <span className="flex items-center gap-1 text-amber-500">
+                            <Star size={12} className="fill-amber-500" /> {item.rating}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <ChevronRight size={16} className="shrink-0 text-neutral-700 self-center" />
+                  </Link>
+                ))}
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">Segera Hadir</h3>
-              <p className="text-sm text-gray-500">Fitur rekomendasi seri serupa akan segera tersedia</p>
-            </Glass>
+            ) : (
+              <Card className="p-8 text-center border-none">
+                <Sparkles className={cn("w-8 h-8 mx-auto mb-3", accentStyle.text)} />
+                <h3 className="text-base font-bold text-white mb-1">Tidak Ada Rekomendasi</h3>
+                <p className="text-sm text-neutral-600">Seri serupa belum tersedia untuk saat ini</p>
+              </Card>
+            )}
           </FadeIn>
         )}
       </div>
 
-      {/* ═══ Floating Action Button (Mobile) ═══ */}
+      {/* Floating Mobile CTA */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 md:hidden">
-        {latestChapter ? (
+        {latestChapter && (
           <Link
             href={`/read/${latestChapter.slug}`}
+            prefetch={false}
             onClick={() => markChapterAsRead(latestChapter.slug)}
-            className={`flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r ${accentStyle.gradient} text-white font-bold rounded-full shadow-2xl ${accentStyle.glow} active:scale-95 transition`}
+            className={cn(
+              "flex items-center gap-2 px-6 py-3.5 text-white font-bold text-sm rounded-full shadow-2xl transition active:scale-95",
+              accentStyle.bg
+            )}
           >
-            <BookOpen size={18} />
-            Baca Sekarang
+            <BookOpen size={17} /> Baca Sekarang
           </Link>
-        ) : null}
+        )}
       </div>
     </main>
   );

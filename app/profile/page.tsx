@@ -7,7 +7,6 @@ import {
   useRef,
   memo,
 } from "react";
-// Pastikan "db" udah diexport di file firebase lo ya Bre
 import { auth, googleProvider, db } from "@/lib/firebase"; 
 import {
   signInWithPopup,
@@ -22,8 +21,7 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
 } from "firebase/auth";
-// Tambahan import buat narik data dari Firestore
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, getDocs } from "firebase/firestore";
 import { clearCache } from "@/lib/api";
 import {
   Camera,
@@ -45,12 +43,14 @@ import {
   Check,
   RotateCcw,
   UserCircle2,
+  Shield,
+  Palette,
+  Zap,
+  HardDrive,
+  UserCog,
 } from "lucide-react";
 
-// Import Cropper
 import Cropper from "react-easy-crop";
-
-// ── Shared accent hook ──
 import { useAccent } from "@/lib/accent";
 
 // ═══════════════════════════════════════════════════
@@ -93,7 +93,6 @@ function timeAgo(ts: number) {
   return `${Math.floor(h / 24)}h lalu`;
 }
 
-// ── Fungsi Helper buat generate gambar hasil crop ──
 const createImage = (url: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
     const image = new Image();
@@ -110,12 +109,9 @@ async function getCroppedImg(
   const image = await createImage(imageSrc);
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
-
   if (!ctx) return null;
-
   canvas.width = pixelCrop.width;
   canvas.height = pixelCrop.height;
-
   ctx.drawImage(
     image,
     pixelCrop.x,
@@ -127,11 +123,8 @@ async function getCroppedImg(
     pixelCrop.width,
     pixelCrop.height
   );
-
   return new Promise((resolve) => {
-    canvas.toBlob((blob) => {
-      resolve(blob);
-    }, "image/jpeg");
+    canvas.toBlob((blob) => resolve(blob), "image/jpeg");
   });
 }
 
@@ -150,10 +143,10 @@ const IconGoogle = memo(() => (
 
 function SkeletonProfile() {
   return (
-    <div className="min-h-screen bg-[#0F0F12] flex flex-col items-center justify-center gap-4 p-4">
-      <div className="w-24 h-24 rounded-full bg-white/5 animate-pulse" />
-      <div className="w-40 h-5 rounded-lg bg-white/5 animate-pulse" />
-      <div className="w-24 h-3 rounded-md bg-white/5 animate-pulse" />
+    <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center gap-5 p-4 relative overflow-hidden">
+      <div className="w-28 h-28 rounded-full bg-[#1c1c1c] animate-pulse ring-1 ring-white/[0.08]" />
+      <div className="w-48 h-6 rounded-full bg-[#1c1c1c] animate-pulse" />
+      <div className="w-32 h-4 rounded-md bg-[#1c1c1c] animate-pulse" />
     </div>
   );
 }
@@ -172,7 +165,6 @@ export default function ProfilePage() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
-  // Preview & Crop states
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -207,14 +199,12 @@ export default function ProfilePage() {
     onConfirm: (val: string) => void;
   }>({ show: false, title: "", placeholder: "", value: "", onConfirm: () => {} });
 
-  // ── Toast ──
   const triggerToast = useCallback((message: string, type: ToastItem["type"] = "success") => {
     const id = ++toastIdRef.current;
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3000);
   }, []);
 
-  // ── Auth & Ambil Data Firebase ──
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
@@ -224,7 +214,6 @@ export default function ProfilePage() {
     return () => unsub();
   }, []);
 
-  // Ambil history
   useEffect(() => {
     if (!user) {
       setHistory([]);
@@ -232,24 +221,19 @@ export default function ProfilePage() {
     }
     const fetchHistoryFromFirebase = async () => {
       try {
-        // Arahin ke sub-collection yang bener sesuai struktur lo
         const historyRef = collection(db, "users", user.uid, "history");
         const querySnapshot = await getDocs(historyRef);
-        
         const historyData: ReadingHistory[] = [];
         querySnapshot.forEach((doc) => {
           const data = doc.data();
-          // Mapping datanya biar pas sama tipe ReadingHistory di Profile
           historyData.push({
             slug: data.slug || doc.id,
             title: data.title || "Tanpa Judul",
-            chapter: data.lastReadChapter || "", // Mapping dari lastReadChapter
+            chapter: data.lastReadChapter || "",
             thumb: data.thumb || "",
-            timestamp: data.savedAt || 0, // Mapping dari savedAt
+            timestamp: data.savedAt || 0,
           });
         });
-
-        // Urutin dari yang terbaru
         historyData.sort((a, b) => b.timestamp - a.timestamp);
         setHistory(historyData);
       } catch (error) {
@@ -258,7 +242,6 @@ export default function ProfilePage() {
     };
     fetchHistoryFromFirebase();
   }, [user]);
-
 
   const handleGoogleLogin = async () => {
     try {
@@ -294,7 +277,6 @@ export default function ProfilePage() {
     }
   };
 
-  // ── Edit Name ──
   const handleEditName = () => {
     if (!user) return;
     setPromptModal({
@@ -314,15 +296,12 @@ export default function ProfilePage() {
     });
   };
 
-  // ── Upload & Crop Logic ──
   const processFile = async (file: File) => {
     if (!file.type.startsWith("image/")) { triggerToast("File harus gambar.", "error"); return; }
     if (file.size > 5 * 1024 * 1024) { triggerToast("Maksimal 5MB.", "error"); return; }
-
     const reader = new FileReader();
     reader.onload = (ev) => {
       setPreviewImage(ev.target?.result as string);
-      // Reset state crop saat gambar baru di-load
       setCrop({ x: 0, y: 0 });
       setZoom(1);
     };
@@ -349,25 +328,19 @@ export default function ProfilePage() {
   const confirmUpload = async () => {
     if (!previewImage || !croppedAreaPixels || !user) return;
     setIsUploading(true);
-    
     try {
-      // Dapatkan gambar hasil crop dalam bentuk blob
       const croppedBlob = await getCroppedImg(previewImage, croppedAreaPixels);
       if (!croppedBlob) throw new Error("Gagal memotong gambar");
-
       const croppedFile = new File([croppedBlob], `profile_${Date.now()}.jpg`, { type: "image/jpeg" });
       const formData = new FormData();
       formData.append("image", croppedFile);
-      
       const imgbbKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
       if (!imgbbKey) throw new Error("No API key");
-
       const res = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {
         method: "POST",
         body: formData,
       });
       const data = await res.json();
-
       if (data.success) {
         const url = data.data.display_url;
         await updateProfile(user, { photoURL: url });
@@ -382,11 +355,8 @@ export default function ProfilePage() {
     }
   };
 
-  const cancelUpload = () => {
-    setPreviewImage(null);
-  };
+  const cancelUpload = () => setPreviewImage(null);
 
-  // ── Default Avatar Picker ──
   const setDefaultAvatar = async (seed: string) => {
     if (!user) return;
     const url = `https://ui-avatars.com/api/?name=${seed}&background=${accentStyle.hex.replace("#", "")}&color=fff&size=256`;
@@ -400,7 +370,6 @@ export default function ProfilePage() {
     }
   };
 
-  // ── Clear Cache ──
   const handleClearCache = () => {
     setConfirmModal({
       show: true,
@@ -416,7 +385,6 @@ export default function ProfilePage() {
     });
   };
 
-  // ── Reset Password ──
   const handleResetPassword = () => {
     if (!user?.email) return;
     setConfirmModal({
@@ -433,7 +401,6 @@ export default function ProfilePage() {
     });
   };
 
-  // ── Delete Account ──
   const handleDeleteAccount = () => {
     if (!user) return;
     setConfirmModal({
@@ -472,7 +439,6 @@ export default function ProfilePage() {
     });
   };
 
-  // ── Logout ──
   const handleLogout = () => {
     setConfirmModal({
       show: true,
@@ -488,7 +454,6 @@ export default function ProfilePage() {
     });
   };
 
-  // ── Copy UID ──
   const copyUid = async () => {
     if (!user?.uid) return;
     try {
@@ -497,24 +462,23 @@ export default function ProfilePage() {
     } catch { triggerToast("Gagal menyalin.", "error"); }
   };
 
-  // ── Stats ──
-  const totalRead = history.reduce((acc, h) => acc + (h.chapter ? 1 : 0), 0);
   const joinDate = user?.metadata?.creationTime ? formatDate(new Date(user.metadata.creationTime).getTime()) : "-";
 
   if (isLoading) return <SkeletonProfile />;
 
   return (
-    <div className="min-h-screen bg-[#0F0F12] text-white pb-28 relative overflow-x-hidden selection:bg-white/10">
+    <div className="min-h-screen bg-[#0a0a0a] text-white pb-28 relative overflow-x-hidden selection:bg-white/10">
+
       {/* ── TOAST QUEUE ── */}
       <div className="fixed top-4 left-0 right-0 z-[100] flex flex-col items-center gap-2 pointer-events-none px-4">
         {toasts.map((t) => (
           <div
             key={t.id}
             className={cn(
-              "pointer-events-auto px-4 py-3 rounded-xl border shadow-lg backdrop-blur-md flex items-center gap-3 max-w-sm w-full transition-all duration-300",
-              t.type === "success" && "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
-              t.type === "error" && "bg-red-500/10 border-red-500/20 text-red-400",
-              t.type === "info" && "bg-purple-500/10 border-purple-500/20 text-purple-400"
+              "pointer-events-auto px-4 py-3 rounded-xl border shadow-2xl backdrop-blur-xl flex items-center gap-3 max-w-sm w-full transition-all duration-500 translate-y-0 bg-[#1c1c1c] text-white",
+              t.type === "success" && "border-emerald-500/30",
+              t.type === "error" && "border-red-500/30",
+              t.type === "info" && "border-blue-500/30"
             )}
           >
             <span className="text-lg">{t.type === "success" ? "✅" : t.type === "error" ? "❌" : "ℹ️"}</span>
@@ -524,33 +488,38 @@ export default function ProfilePage() {
       </div>
 
       {/* ── HEADER ── */}
-      <div className="max-w-md mx-auto px-4 pt-6 pb-2">
-        <div className="flex items-center gap-3 mb-6">
-          <div className={cn("p-2.5 rounded-xl border shadow-lg", accentStyle.bg + "/10", accentStyle.border, accentStyle.glow)}>
-            <Sparkles className={cn("w-5 h-5", accentStyle.text)} />
+      <div className="max-w-md mx-auto px-5 pt-8 pb-4 relative z-10">
+        <div className="flex items-center gap-3 mb-8">
+          <div className={cn(
+            "p-2.5 rounded-2xl border shadow-lg backdrop-blur-md bg-[#1c1c1c] border-white/[0.05]",
+          )}>
+            <UserCircle2 className={cn("w-5 h-5", accentStyle.text)} />
           </div>
-          <h2 className="text-2xl font-bold tracking-tight">Profile</h2>
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Profile</h2>
+            <p className="text-[11px] text-gray-500 font-medium">Kelola akun dan preferensi</p>
+          </div>
         </div>
       </div>
 
       {user ? (
-        <div className="max-w-md mx-auto px-4 space-y-6">
+        <div className="max-w-md mx-auto px-5 space-y-8 relative z-10">
           {/* ── AVATAR ── */}
           <div className="flex flex-col items-center">
             <div
               className={cn(
-                "relative mb-4 rounded-full p-1 border-2 transition-colors",
-                dragOver ? accentStyle.border : "border-white/5"
+                "relative mb-5 rounded-full p-[3px] transition-all duration-300",
+                dragOver ? cn(accentStyle.border, "scale-105") : "border-transparent"
               )}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDropPreview}
             >
-              <div className="w-28 h-28 rounded-full overflow-hidden bg-[#1A1A24] relative ring-1 ring-white/5">
+              <div className="w-32 h-32 rounded-full overflow-hidden bg-[#1c1c1c] relative ring-1 ring-white/[0.06]">
                 <img
-                  src={localPhoto || `https://ui-avatars.com/api/?name=${user.displayName || "U"}&background=1A1A24&color=a855f7`}
+                  src={localPhoto || `https://ui-avatars.com/api/?name=${user.displayName || "U"}&background=1A1A24&color=fff`}
                   alt="Profile"
-                  className={cn("w-full h-full object-cover transition-opacity duration-300")}
+                  className="w-full h-full object-cover transition-all duration-500 hover:scale-110"
                 />
               </div>
 
@@ -558,7 +527,7 @@ export default function ProfilePage() {
               <label
                 htmlFor="upload-pp"
                 className={cn(
-                  "absolute bottom-0 right-0 p-2.5 rounded-full border-2 border-[#0F0F12] shadow-lg transition-all active:scale-90 z-10 cursor-pointer hover:brightness-110", 
+                  "absolute bottom-1 right-1 p-2.5 rounded-full border-2 border-[#0a0a0a] shadow-xl transition-all active:scale-90 z-10 cursor-pointer hover:brightness-125 hover:scale-110", 
                   accentStyle.bg
                 )}
               >
@@ -566,22 +535,21 @@ export default function ProfilePage() {
               </label>
             </div>
 
-            {/* Avatar Default Picker Toggle */}
             <button
               onClick={() => setShowAvatarPicker((v) => !v)}
-              className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-gray-300 transition-colors mb-1"
+              className="flex items-center gap-1.5 text-[11px] text-neutral-400 hover:text-white transition-colors mb-2 px-3 py-1 rounded-full bg-[#1c1c1c] border border-white/[0.05]"
             >
               <UserCircle2 className="w-3.5 h-3.5" />
               Pilih avatar default
             </button>
 
             {showAvatarPicker && (
-              <div className="flex gap-2 mt-2 mb-1 overflow-x-auto max-w-full pb-1 scrollbar-hide px-2">
+              <div className="flex gap-2.5 mt-2 mb-2 overflow-x-auto max-w-full pb-2 scrollbar-hide px-2">
                 {["Asta", "Naruto", "Luffy", "Goku", "Saitama", "Levi", "Zenitsu", "Gojo"].map((seed) => (
                   <button
                     key={seed}
                     onClick={() => setDefaultAvatar(seed)}
-                    className="flex-shrink-0 w-10 h-10 rounded-full overflow-hidden border border-white/10 hover:border-white/30 transition-colors active:scale-90"
+                    className="flex-shrink-0 w-11 h-11 rounded-full overflow-hidden border border-white/[0.08] hover:border-white/30 transition-all active:scale-90"
                   >
                     <img
                       src={`https://ui-avatars.com/api/?name=${seed}&background=${accentStyle.hex.replace("#", "")}&color=fff&size=128`}
@@ -593,26 +561,25 @@ export default function ProfilePage() {
               </div>
             )}
 
-            <div className="flex items-center gap-2 mb-0.5 mt-1">
-              <h3 className="text-xl font-bold">{user.displayName || "Pembaca Tsuki"}</h3>
-              <button onClick={handleEditName} className="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/5">
-                <Pencil className="w-4 h-4" />
+            <div className="flex items-center gap-2 mb-1 mt-1">
+              <h3 className="text-xl font-bold tracking-tight">{user.displayName || "Pembaca Tsuki"}</h3>
+              <button onClick={handleEditName} className="text-gray-500 hover:text-white transition-all p-1.5 rounded-xl hover:bg-white/5 active:scale-90">
+                <Pencil className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
-              <span className="truncate max-w-[200px]">{user.email}</span>
+            <div className="flex items-center gap-2 text-xs text-gray-400 mb-2">
+              <span className="truncate max-w-[220px]">{user.email}</span>
               {user.emailVerified && (
-                <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
-                  Terverifikasi
+                <span className="px-2 py-0.5 rounded-lg bg-emerald-500/[0.1] text-emerald-400 border border-emerald-500/20 text-[10px] font-bold flex items-center gap-1">
+                  <Check className="w-3 h-3" /> Terverifikasi
                 </span>
               )}
             </div>
 
-            {/* UID */}
             <button
               onClick={copyUid}
-              className="mt-1 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group"
+              className="mt-1 flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#1c1c1c] border border-white/[0.05] hover:bg-[#262626] transition-all active:scale-95 group"
             >
               <span className="text-[11px] text-gray-500 font-mono tracking-tight">{user.uid.slice(0, 14)}...</span>
               <Copy className="w-3.5 h-3.5 text-gray-600 group-hover:text-white transition-colors" />
@@ -621,46 +588,44 @@ export default function ProfilePage() {
 
           {/* ── STATS ── */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-[#1A1A24] border border-white/5 rounded-xl p-3 flex flex-col items-center justify-center min-h-[90px] gap-1">
+            <div className="group relative overflow-hidden bg-[#141414] border border-white/[0.05] rounded-2xl p-4 flex flex-col items-center justify-center min-h-[100px] gap-1.5 transition-all">
               <Calendar className={cn("w-5 h-5 mb-0.5", accentStyle.text)} />
               <div className="text-sm font-bold text-white leading-tight text-center">{joinDate}</div>
               <div className="text-[10px] text-gray-500 font-medium">Bergabung</div>
             </div>
-            <div className="bg-[#1A1A24] border border-white/5 rounded-xl p-3 flex flex-col items-center justify-center min-h-[90px] gap-1">
+            <div className="group relative overflow-hidden bg-[#141414] border border-white/[0.05] rounded-2xl p-4 flex flex-col items-center justify-center min-h-[100px] gap-1.5 transition-all">
               <Clock className={cn("w-5 h-5 mb-0.5", accentStyle.text)} />
               <div className="text-lg font-bold text-white leading-tight">{history.length}</div>
               <div className="text-[10px] text-gray-500 font-medium">History</div>
             </div>
           </div>
 
-
           {/* ── RECENT HISTORY ── */}
           {history.length > 0 && (
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-bold text-gray-300">Terakhir Dibaca</h4>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-bold text-gray-300 flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-gray-500" /> Terakhir Dibaca
+                </h4>
                 <button
-                  onClick={() => {
-                     // TODO: Tambahin logika hapus history di Firebase kalo butuh
-                     setHistory([]) 
-                  }}
-                  className="text-[10px] text-red-400 hover:text-red-300 transition-colors font-medium"
+                  onClick={() => setHistory([])}
+                  className="text-[10px] text-red-400/80 hover:text-red-300 transition-colors font-medium px-2 py-1 rounded-lg hover:bg-red-500/10"
                 >
                   Hapus Semua
                 </button>
               </div>
-              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+              <div className="flex gap-3.5 overflow-x-auto pb-3 scrollbar-hide -mx-5 px-5">
                 {history.slice(0, 10).map((h) => (
-                  <a key={`${h.slug}-${h.timestamp}`} href={`/detail/${h.slug}`} className="flex-shrink-0 w-[110px] group">
-                    <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-[#1A1A24] border border-white/5 mb-2">
-                      <img src={h.thumb || "/no-image.png"} alt={h.title} className="w-full h-full object-cover" loading="lazy" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                      <div className="absolute bottom-1.5 left-1.5 right-1.5">
-                        <span className="text-[10px] font-bold text-white bg-black/50 px-1.5 py-0.5 rounded backdrop-blur-sm">{h.chapter}</span>
+                  <a key={`${h.slug}-${h.timestamp}`} href={`/detail/${h.slug}`} className="flex-shrink-0 w-[115px] group">
+                    <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-[#1c1c1c] border border-white/[0.05] mb-2.5 transition-all group-hover:-translate-y-1 duration-300">
+                      <img src={h.thumb || "/no-image.png"} alt={h.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                      <div className="absolute bottom-2 left-2 right-2">
+                        <span className="text-[10px] font-bold text-white bg-black/70 px-2 py-0.5 rounded backdrop-blur-md">{h.chapter}</span>
                       </div>
                     </div>
-                    <p className="text-[11px] text-gray-300 line-clamp-2 leading-snug group-hover:text-white transition-colors">{h.title}</p>
-                    <p className="text-[9px] text-gray-600 mt-0.5">{timeAgo(h.timestamp)}</p>
+                    <p className="text-[11px] text-neutral-400 line-clamp-2 leading-snug group-hover:text-white transition-colors font-medium">{h.title}</p>
+                    <p className="text-[9px] text-neutral-600 mt-1">{timeAgo(h.timestamp)}</p>
                   </a>
                 ))}
               </div>
@@ -668,147 +633,161 @@ export default function ProfilePage() {
           )}
 
           {/* ── MAIN MENU ── */}
-          <div className="bg-[#1A1A24] border border-white/5 rounded-2xl overflow-hidden">
+          <div className="bg-[#141414] border border-white/[0.05] rounded-3xl overflow-hidden">
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="w-full flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors text-left group active:scale-[0.99] duration-150"
+              className="w-full flex items-center justify-between p-4 hover:bg-[#1c1c1c] transition-all text-left group active:scale-[0.99] duration-200"
             >
-              <div className="flex items-center gap-3">
-                <div className={cn("p-1.5 rounded-lg", accentStyle.soft)}>
-                  <Settings className={cn("w-4 h-4", accentStyle.text)} />
+              <div className="flex items-center gap-3.5">
+                <div className={cn("p-2 rounded-xl bg-white/5")}>
+                  <Settings className={cn("w-4 h-4 text-neutral-400")} />
                 </div>
-                <span className="text-sm font-medium group-hover:text-gray-200 transition-colors">Pengaturan Akun</span>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium group-hover:text-white transition-colors">Pengaturan Akun</span>
+                  <span className="text-[10px] text-gray-500">Warna, privasi, dan data</span>
+                </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-gray-400 transition-colors" />
+              <ChevronRight className="w-4 h-4 text-gray-700 group-hover:text-gray-400 transition-all group-hover:translate-x-0.5" />
             </button>
 
-            <div className="h-px bg-white/5 mx-4" />
+            <div className="h-px bg-white/[0.04] mx-4" />
 
             <button
               onClick={handleClearCache}
-              className="w-full flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors text-left group active:scale-[0.99] duration-150"
+              className="w-full flex items-center justify-between p-4 hover:bg-[#1c1c1c] transition-all text-left group active:scale-[0.99] duration-200"
             >
-              <div className="flex items-center gap-3">
-                <div className="p-1.5 rounded-lg bg-orange-500/10">
+              <div className="flex items-center gap-3.5">
+                <div className="p-2 rounded-xl bg-orange-500/10">
                   <Trash2 className="w-4 h-4 text-orange-400" />
                 </div>
-                <span className="text-sm font-medium text-gray-300 group-hover:text-gray-200 transition-colors">Bersihkan Cache</span>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">Bersihkan Cache</span>
+                  <span className="text-[10px] text-gray-500">Hapus data sementara</span>
+                </div>
               </div>
-              <Trash2 className="w-4 h-4 text-gray-600" />
+              <Trash2 className="w-4 h-4 text-gray-700" />
             </button>
 
-            <div className="h-px bg-white/5 mx-4" />
+            <div className="h-px bg-white/[0.04] mx-4" />
 
             <button
               onClick={handleDeleteAccount}
-              className="w-full flex items-center justify-between p-4 hover:bg-red-500/5 transition-colors text-left group active:scale-[0.99] duration-150"
+              className="w-full flex items-center justify-between p-4 hover:bg-red-500/[0.05] transition-all text-left group active:scale-[0.99] duration-200"
             >
-              <div className="flex items-center gap-3">
-                <div className="p-1.5 rounded-lg bg-red-500/10">
+              <div className="flex items-center gap-3.5">
+                <div className="p-2 rounded-xl bg-red-500/10">
                   <AlertTriangle className="w-4 h-4 text-red-400" />
                 </div>
-                <span className="text-sm font-medium text-red-400 group-hover:text-red-300 transition-colors">Hapus Akun</span>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-red-400/90 group-hover:text-red-300 transition-colors">Hapus Akun</span>
+                  <span className="text-[10px] text-gray-500">Tindakan permanen</span>
+                </div>
               </div>
-              <AlertTriangle className="w-4 h-4 text-red-500/50" />
+              <AlertTriangle className="w-4 h-4 text-red-500/30" />
             </button>
           </div>
 
           <button
             onClick={handleLogout}
-            className="w-full bg-red-500/10 text-red-400 border border-red-500/20 py-3.5 rounded-xl font-bold hover:bg-red-500/20 active:scale-[0.98] transition-all text-sm flex items-center justify-center gap-2"
+            className="w-full bg-[#1c1c1c] text-red-400 border border-white/[0.05] py-3.5 rounded-2xl font-bold hover:bg-[#262626] active:scale-[0.98] transition-all text-sm flex items-center justify-center gap-2"
           >
             <LogOut className="w-4 h-4" />
             Keluar Akun
           </button>
 
           <div className="text-center pt-2 pb-4">
-            <span className="text-[10px] text-gray-600 tracking-widest font-bold">TSUKINIME v1.2.0</span>
+            <span className="text-[10px] text-neutral-600 tracking-[0.2em] font-bold uppercase">Tsukinest v1.2.0</span>
           </div>
         </div>
       ) : (
-        /* ═══════════════════════════════════════════════
-           LOGIN / REGISTER UI
-           ═══════════════════════════════════════════════ */
-        <div className="max-w-md mx-auto px-4">
-          <div className="flex flex-col items-center mb-8 text-center">
-            <div className={cn("w-20 h-20 rounded-full flex items-center justify-center mb-4 border", accentStyle.bg + "/10", accentStyle.border)}>
-              <span className="text-3xl">👋</span>
+        <div className="max-w-md mx-auto px-5 relative z-10 pt-10">
+          <div className="flex flex-col items-center mb-10 text-center">
+            <div className={cn(
+              "w-24 h-24 rounded-3xl flex items-center justify-center mb-5 border bg-[#141414] border-white/[0.05]"
+            )}>
+              <span className="text-4xl">👋</span>
             </div>
-            <h3 className="text-xl font-bold mb-1">{isRegisterMode ? "Daftar Akun" : "Selamat Datang"}</h3>
-            <p className="text-xs text-gray-400 px-8 leading-relaxed">
-              {isRegisterMode ? "Buat akun untuk sinkronisasi data bacaan." : "Masuk untuk menyimpan history dan preferensi."}
+            <h3 className="text-2xl font-bold mb-2 tracking-tight">{isRegisterMode ? "Daftar Akun" : "Selamat Datang"}</h3>
+            <p className="text-xs text-neutral-500 px-8 leading-relaxed max-w-[280px]">
+              {isRegisterMode ? "Buat akun untuk sinkronisasi data bacaan di semua perangkat." : "Masuk untuk menyimpan history, koleksi, dan preferensi."}
             </p>
           </div>
 
-          <form onSubmit={handleEmailAuth} className="w-full space-y-3 mb-5">
+          <form onSubmit={handleEmailAuth} className="w-full space-y-3.5 mb-6">
             {isRegisterMode && (
+              <div className="relative group">
+                <UserCog className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-600 group-focus-within:text-neutral-400 transition-colors" />
+                <input
+                  type="text"
+                  placeholder="Nama lengkap..."
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="w-full bg-[#141414] border border-white/[0.05] rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white outline-none focus:border-white/20 transition-all placeholder:text-neutral-600"
+                  required
+                />
+              </div>
+            )}
+            <div className="relative group">
+              <UserCircle2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-600 group-focus-within:text-neutral-400 transition-colors" />
               <input
-                type="text"
-                placeholder="Nama lengkap..."
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full bg-[#1A1A24] border border-white/5 rounded-xl px-4 py-3.5 text-sm text-white outline-none focus:border-purple-500/50 transition-colors placeholder:text-gray-600"
+                type="email"
+                placeholder="Email..."
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-[#141414] border border-white/[0.05] rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white outline-none focus:border-white/20 transition-all placeholder:text-neutral-600"
                 required
               />
-            )}
-            <input
-              type="email"
-              placeholder="Email..."
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-[#1A1A24] border border-white/5 rounded-xl px-4 py-3.5 text-sm text-white outline-none focus:border-purple-500/50 transition-colors placeholder:text-gray-600"
-              required
-            />
-            <div className="relative w-full">
+            </div>
+            <div className="relative group">
+              <Shield className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-600 group-focus-within:text-neutral-400 transition-colors" />
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="Kata sandi (min. 6 karakter)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-[#1A1A24] border border-white/5 rounded-xl px-4 py-3.5 text-sm text-white outline-none focus:border-purple-500/50 transition-colors placeholder:text-gray-600 pr-12"
+                className="w-full bg-[#141414] border border-white/[0.05] rounded-2xl pl-11 pr-12 py-3.5 text-sm text-white outline-none focus:border-white/20 transition-all placeholder:text-neutral-600"
                 required
                 minLength={6}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors p-1"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-600 hover:text-neutral-300 transition-colors p-1.5 rounded-lg"
               >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
 
             <button
               type="submit"
               className={cn(
-                "w-full py-3.5 rounded-xl font-bold shadow-lg active:scale-[0.98] transition-all text-sm",
-                accentStyle.bg,
-                accentStyle.glow
+                "w-full py-3.5 rounded-2xl font-bold active:scale-[0.98] transition-all text-sm mt-2 text-white",
+                accentStyle.bg
               )}
             >
               {isRegisterMode ? "Daftar Sekarang" : "Masuk"}
             </button>
           </form>
 
-          <p className="text-center text-xs text-gray-400 mb-6">
+          <p className="text-center text-xs text-neutral-500 mb-6">
             {isRegisterMode ? "Sudah punya akun?" : "Belum punya akun?"}{" "}
             <span
               onClick={() => { setIsRegisterMode(!isRegisterMode); setEmail(""); setPassword(""); setDisplayName(""); }}
-              className={cn("font-bold cursor-pointer hover:underline", accentStyle.text)}
+              className={cn("font-bold cursor-pointer hover:underline transition-all", accentStyle.text)}
             >
               {isRegisterMode ? "Masuk" : "Daftar"}
             </span>
           </p>
 
           <div className="flex items-center gap-3 mb-6">
-            <div className="h-px flex-1 bg-white/5" />
-            <span className="text-[10px] text-gray-600 font-bold tracking-widest">ATAU</span>
-            <div className="h-px flex-1 bg-white/5" />
+            <div className="h-px flex-1 bg-white/[0.05]" />
+            <span className="text-[10px] text-neutral-600 font-bold tracking-widest uppercase">atau</span>
+            <div className="h-px flex-1 bg-white/[0.05]" />
           </div>
 
           <button
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 bg-white text-black font-bold py-3.5 rounded-xl active:scale-[0.98] transition-all text-sm"
+            className="w-full flex items-center justify-center gap-3 bg-white text-black font-bold py-3.5 rounded-2xl active:scale-[0.98] transition-all text-sm"
           >
             <IconGoogle />
             Lanjutkan dengan Google
@@ -820,12 +799,12 @@ export default function ProfilePage() {
           IMAGE CROP MODAL
           ═══════════════════════════════════════════════ */}
       {previewImage && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-[#1A1A24] border border-white/10 w-full max-w-sm rounded-2xl p-5 shadow-2xl text-center">
-            <h3 className="text-base font-bold mb-1">Sesuaikan Foto</h3>
-            <p className="text-[11px] text-gray-400 mb-4">Geser dan perbesar biar pas di tengah</p>
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+          <div className="bg-[#141414] border border-white/[0.05] w-full max-w-sm rounded-3xl p-6 text-center">
+            <h3 className="text-lg font-bold mb-1">Sesuaikan Foto</h3>
+            <p className="text-xs text-neutral-500 mb-5">Geser dan perbesar biar pas di tengah</p>
 
-            <div className="relative w-full h-64 mb-4 rounded-xl overflow-hidden bg-black/50 border border-white/10 ring-1 ring-white/5">
+            <div className="relative w-full h-64 mb-5 rounded-2xl overflow-hidden bg-black/40 border border-white/[0.05]">
               <Cropper
                 image={previewImage}
                 crop={crop}
@@ -839,9 +818,8 @@ export default function ProfilePage() {
               />
             </div>
 
-            {/* Zoom Slider */}
             <div className="mb-6 px-2 flex items-center gap-3">
-              <span className="text-xs font-bold text-gray-400">-</span>
+              <span className="text-xs font-bold text-neutral-600">-</span>
               <input
                 type="range"
                 value={zoom}
@@ -850,16 +828,16 @@ export default function ProfilePage() {
                 step={0.1}
                 aria-labelledby="Zoom"
                 onChange={(e) => setZoom(Number(e.target.value))}
-                className={cn("w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white")}
+                className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-white"
               />
-              <span className="text-xs font-bold text-gray-400">+</span>
+              <span className="text-xs font-bold text-neutral-600">+</span>
             </div>
 
             <div className="flex gap-3">
               <button
                 onClick={cancelUpload}
                 disabled={isUploading}
-                className="flex-1 bg-white/5 hover:bg-white/10 py-3 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                className="flex-1 bg-[#1c1c1c] hover:bg-[#262626] py-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 Batal
@@ -868,14 +846,13 @@ export default function ProfilePage() {
                 onClick={confirmUpload}
                 disabled={isUploading}
                 className={cn(
-                  "flex-1 py-3 rounded-xl text-xs font-bold transition-all active:scale-95 text-white flex items-center justify-center gap-1.5",
+                  "flex-1 py-3 rounded-2xl text-xs font-bold transition-all active:scale-95 text-white flex items-center justify-center gap-1.5",
                   accentStyle.bg,
-                  accentStyle.glow,
                   isUploading && "opacity-70 cursor-wait"
                 )}
               >
                 {isUploading ? (
-                  <div className={cn("w-4 h-4 border-2 border-t-transparent rounded-full animate-spin", accentStyle.bg.replace("bg-", "border-"))} />
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
                   <Check className="w-3.5 h-3.5" />
                 )}
@@ -887,42 +864,48 @@ export default function ProfilePage() {
       )}
 
       {/* ═══════════════════════════════════════════════
-          SETTINGS SHEET — WARNA AKSEN
+          SETTINGS SHEET
           ═══════════════════════════════════════════════ */}
       {isSettingsOpen && user && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md">
           <div
-            className="bg-[#141419] w-full sm:w-[420px] sm:rounded-2xl rounded-t-2xl border border-white/5 shadow-2xl max-h-[85vh] overflow-y-auto scrollbar-hide"
+            className="bg-[#141414] w-full sm:w-[440px] sm:rounded-3xl rounded-t-3xl border border-white/[0.05] max-h-[90vh] overflow-y-auto scrollbar-hide"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 bg-[#141419]/95 backdrop-blur-md z-10 flex items-center justify-between p-5 border-b border-white/5">
-              <h3 className="text-base font-bold flex items-center gap-2">
-                <Settings className={cn("w-4 h-4", accentStyle.text)} /> Pengaturan
+            <div className="sticky top-0 bg-[#141414]/95 backdrop-blur-xl z-10 flex items-center justify-between p-5 border-b border-white/[0.05]">
+              <h3 className="text-base font-bold flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-white/5">
+                  <Settings className="w-4 h-4 text-neutral-300" />
+                </div>
+                Pengaturan
               </h3>
               <button
                 onClick={() => setIsSettingsOpen(false)}
-                className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+                className="p-2 hover:bg-white/5 rounded-xl transition-colors active:scale-90"
               >
-                <X className="w-5 h-5 text-gray-400" />
+                <X className="w-5 h-5 text-neutral-400" />
               </button>
             </div>
 
             <div className="p-5 space-y-8">
               {/* Tampilan */}
               <section>
-                <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3">Tampilan</h4>
-                <div className="space-y-3">
-                  <div className="bg-[#1A1A24] rounded-xl p-4 border border-white/5">
-                    <div className="text-sm font-medium mb-3">Warna Aksen</div>
+                <h4 className="text-[10px] font-bold text-neutral-500 uppercase tracking-[0.15em] mb-4 flex items-center gap-2">
+                  <Palette className="w-3 h-3" /> Tampilan
+                </h4>
+                <div className="space-y-4">
+                  <div className="bg-[#1c1c1c] rounded-2xl p-5 border border-white/[0.05]">
+                    <div className="text-sm font-semibold mb-4 flex items-center gap-2 text-white">
+                      <Sparkles className={cn("w-4 h-4", accentStyle.text)} /> Warna Aksen
+                    </div>
                     
-                    <div className="grid grid-cols-5 gap-3">
-                      {/* TOMBOL CUSTOM COLOR PICKER */}
+                    <div className="grid grid-cols-6 gap-3">
                       <label
                         className={cn(
-                          "relative w-9 h-9 rounded-full border-2 transition-all active:scale-90 flex items-center justify-center overflow-hidden cursor-pointer",
+                          "relative aspect-square rounded-xl border-2 transition-all active:scale-90 flex items-center justify-center overflow-hidden cursor-pointer",
                           accent === "custom"
-                            ? "border-white scale-110 shadow-lg shadow-black/20"
-                            : "border-transparent opacity-60 hover:opacity-100"
+                            ? "border-white scale-105"
+                            : "border-transparent opacity-70 hover:opacity-100"
                         )}
                         style={{
                           background: accent === "custom" ? customHex : "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)"
@@ -938,10 +921,9 @@ export default function ProfilePage() {
                           }}
                           className="absolute inset-0 opacity-0 cursor-pointer w-[150%] h-[150%] -ml-1 -mt-1"
                         />
-                        {accent === "custom" && <Check className="w-4 h-4 text-white drop-shadow-md z-10 pointer-events-none" />}
+                        {accent === "custom" && <Check className="w-5 h-5 text-white drop-shadow-md z-10 pointer-events-none" />}
                       </label>
 
-                      {/* ARRAY WARNA DEFAULT */}
                       {([
                         { key: "purple",  bg: "bg-indigo-500" },
                         { key: "violet",  bg: "bg-violet-500" },
@@ -967,24 +949,29 @@ export default function ProfilePage() {
                           key={c.key}
                           onClick={() => setAccent(c.key)}
                           className={cn(
-                            "w-9 h-9 rounded-full border-2 transition-all active:scale-90 flex items-center justify-center",
+                            "aspect-square rounded-xl border-2 transition-all active:scale-90 flex items-center justify-center",
                             c.bg,
                             accent === c.key 
-                              ? "border-white scale-110 shadow-lg shadow-black/20" 
-                              : "border-transparent opacity-60 hover:opacity-100"
+                              ? "border-white scale-105" 
+                              : "border-transparent opacity-70 hover:opacity-100"
                           )}
                           aria-label={`Accent ${c.key}`}
                         >
-                          {accent === c.key && <Check className="w-4 h-4 text-white" />}
+                          {accent === c.key && <Check className="w-5 h-5 text-white drop-shadow-md" />}
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  <div className="bg-[#1A1A24] rounded-xl p-4 border border-white/5 flex items-center justify-between">
-                    <div>
-                      <span className="text-sm font-medium block">Mode Hemat</span>
-                      <span className="text-[11px] text-gray-500">Kurangi animasi & efek</span>
+                  <div className="bg-[#1c1c1c] rounded-2xl p-5 border border-white/[0.05] flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-white/5">
+                        <Zap className="w-4 h-4 text-neutral-400" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-white block">Mode Hemat</span>
+                        <span className="text-[11px] text-neutral-500">Kurangi animasi transisi</span>
+                      </div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
@@ -994,7 +981,7 @@ export default function ProfilePage() {
                           document.documentElement.classList.toggle("reduce-motion", e.target.checked);
                         }}
                       />
-                      <div className="w-10 h-5 bg-white/10 rounded-full peer peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600" />
+                      <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500" />
                     </label>
                   </div>
                 </div>
@@ -1002,33 +989,37 @@ export default function ProfilePage() {
 
               {/* Akun */}
               <section>
-                <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3">Akun</h4>
-                <div className="bg-[#1A1A24] rounded-xl border border-white/5 divide-y divide-white/5">
+                <h4 className="text-[10px] font-bold text-neutral-500 uppercase tracking-[0.15em] mb-4 flex items-center gap-2">
+                  <UserCog className="w-3 h-3" /> Akun
+                </h4>
+                <div className="bg-[#1c1c1c] rounded-2xl border border-white/[0.05] divide-y divide-white/[0.05] overflow-hidden">
                   <button
                     onClick={() => { setIsSettingsOpen(false); handleEditName(); }}
-                    className="w-full flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors text-left active:scale-[0.99] duration-150"
+                    className="w-full flex items-center justify-between p-4 hover:bg-[#262626] transition-all text-left active:scale-[0.99]"
                   >
-                    <span className="text-sm flex items-center gap-3">
-                      <Pencil className="w-4 h-4 text-gray-500" /> Ubah Nama Profil
+                    <span className="text-sm flex items-center gap-3 text-neutral-300">
+                      <Pencil className="w-4 h-4 text-neutral-500" /> Ubah Nama Profil
                     </span>
-                    <ChevronRight className="w-4 h-4 text-gray-600" />
+                    <ChevronRight className="w-4 h-4 text-neutral-600" />
                   </button>
                   <button
                     onClick={() => { setIsSettingsOpen(false); handleResetPassword(); }}
-                    className="w-full flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors text-left active:scale-[0.99] duration-150"
+                    className="w-full flex items-center justify-between p-4 hover:bg-[#262626] transition-all text-left active:scale-[0.99]"
                   >
-                    <span className="text-sm flex items-center gap-3">
-                      <Settings className="w-4 h-4 text-gray-500" /> Atur Ulang Kata Sandi
+                    <span className="text-sm flex items-center gap-3 text-neutral-300">
+                      <Shield className="w-4 h-4 text-neutral-500" /> Atur Ulang Kata Sandi
                     </span>
-                    <ChevronRight className="w-4 h-4 text-gray-600" />
+                    <ChevronRight className="w-4 h-4 text-neutral-600" />
                   </button>
                 </div>
               </section>
 
               {/* Data */}
               <section>
-                <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3">Data</h4>
-                <div className="bg-[#1A1A24] rounded-xl border border-white/5 divide-y divide-white/5">
+                <h4 className="text-[10px] font-bold text-neutral-500 uppercase tracking-[0.15em] mb-4 flex items-center gap-2">
+                  <HardDrive className="w-3 h-3" /> Data
+                </h4>
+                <div className="bg-[#1c1c1c] rounded-2xl border border-white/[0.05] divide-y divide-white/[0.05] overflow-hidden">
                   <button
                     onClick={() => {
                       const data = JSON.stringify(history, null, 2);
@@ -1036,26 +1027,26 @@ export default function ProfilePage() {
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement("a");
                       a.href = url;
-                      a.download = `tsuki-backup-${Date.now()}.json`;
+                      a.download = `tsukinest-backup-${Date.now()}.json`;
                       a.click();
                       URL.revokeObjectURL(url);
                       triggerToast("Backup diunduh!", "success");
                     }}
-                    className="w-full flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors text-left active:scale-[0.99] duration-150"
+                    className="w-full flex items-center justify-between p-4 hover:bg-[#262626] transition-all text-left active:scale-[0.99]"
                   >
-                    <span className="text-sm flex items-center gap-3">
-                      <Download className="w-4 h-4 text-gray-500" /> Export History
+                    <span className="text-sm flex items-center gap-3 text-neutral-300">
+                      <Download className="w-4 h-4 text-neutral-500" /> Export History
                     </span>
-                    <ChevronRight className="w-4 h-4 text-gray-600" />
+                    <ChevronRight className="w-4 h-4 text-neutral-600" />
                   </button>
                   <button
                     onClick={() => { setIsSettingsOpen(false); handleClearCache(); }}
-                    className="w-full flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors text-left active:scale-[0.99] duration-150"
+                    className="w-full flex items-center justify-between p-4 hover:bg-[#262626] transition-all text-left active:scale-[0.99]"
                   >
-                    <span className="text-sm flex items-center gap-3">
-                      <Trash2 className="w-4 h-4 text-gray-500" /> Bersihkan Cache
+                    <span className="text-sm flex items-center gap-3 text-neutral-300">
+                      <Trash2 className="w-4 h-4 text-neutral-500" /> Bersihkan Cache
                     </span>
-                    <ChevronRight className="w-4 h-4 text-gray-600" />
+                    <ChevronRight className="w-4 h-4 text-neutral-600" />
                   </button>
                 </div>
               </section>
@@ -1068,26 +1059,35 @@ export default function ProfilePage() {
           CONFIRM MODAL
           ═══════════════════════════════════════════════ */}
       {confirmModal.show && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-[2px] p-4">
-          <div className="bg-[#1A1A24] border border-white/10 w-full max-w-xs rounded-2xl p-5 shadow-2xl text-center">
-            <h3 className={cn("text-base font-bold mb-2", confirmModal.variant === "danger" ? "text-red-400" : "text-white")}>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-[#141414] border border-white/[0.05] w-full max-w-xs rounded-3xl p-6 text-center">
+            <div className={cn(
+              "w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4",
+              confirmModal.variant === "danger" ? "bg-red-500/10" : "bg-white/5"
+            )}>
+              {confirmModal.variant === "danger" 
+                ? <AlertTriangle className="w-6 h-6 text-red-400" />
+                : <Sparkles className={cn("w-6 h-6", accentStyle.text)} />
+              }
+            </div>
+            <h3 className={cn("text-lg font-bold mb-2", confirmModal.variant === "danger" ? "text-red-400" : "text-white")}>
               {confirmModal.title}
             </h3>
-            <p className="text-xs text-gray-400 mb-6 leading-relaxed px-1">{confirmModal.message}</p>
+            <p className="text-xs text-neutral-400 mb-7 leading-relaxed px-1">{confirmModal.message}</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmModal((prev) => ({ ...prev, show: false }))}
-                className="flex-1 bg-white/5 hover:bg-white/10 py-2.5 rounded-xl text-xs font-bold transition-colors"
+                className="flex-1 bg-[#1c1c1c] hover:bg-[#262626] py-3 rounded-xl text-xs font-bold transition-all active:scale-95 text-white"
               >
                 Batal
               </button>
               <button
                 onClick={confirmModal.onConfirm}
                 className={cn(
-                  "flex-1 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95",
+                  "flex-1 py-3 rounded-xl text-xs font-bold transition-all active:scale-95 text-white",
                   confirmModal.variant === "danger"
-                    ? "bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/20"
-                    : cn(accentStyle.bg, "hover:brightness-110 text-white", accentStyle.glow)
+                    ? "bg-red-600 hover:bg-red-500"
+                    : accentStyle.bg
                 )}
               >
                 {confirmModal.variant === "danger" ? "Hapus" : "Konfirmasi"}
@@ -1101,9 +1101,9 @@ export default function ProfilePage() {
           PROMPT MODAL
           ═══════════════════════════════════════════════ */}
       {promptModal.show && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-[2px] p-4">
-          <div className="bg-[#1A1A24] border border-white/10 w-full max-w-xs rounded-2xl p-5 shadow-2xl">
-            <h3 className="text-base font-bold mb-3 text-center">{promptModal.title}</h3>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-[#141414] border border-white/[0.05] w-full max-w-xs rounded-3xl p-6">
+            <h3 className="text-base font-bold mb-4 text-center">{promptModal.title}</h3>
             <input
               type={promptModal.isPassword ? "password" : "text"}
               placeholder={promptModal.placeholder}
@@ -1111,18 +1111,18 @@ export default function ProfilePage() {
               autoFocus
               onChange={(e) => setPromptModal((prev) => ({ ...prev, value: e.target.value }))}
               onKeyDown={(e) => { if (e.key === "Enter") promptModal.onConfirm(promptModal.value); }}
-              className="w-full bg-[#0F0F12] border border-white/5 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-purple-500/50 transition-colors placeholder:text-gray-600 mb-4"
+              className="w-full bg-[#1c1c1c] border border-white/[0.05] rounded-xl px-4 py-3.5 text-sm text-white outline-none focus:border-white/20 transition-all placeholder:text-neutral-500 mb-5"
             />
             <div className="flex gap-3">
               <button
                 onClick={() => setPromptModal((prev) => ({ ...prev, show: false }))}
-                className="flex-1 bg-white/5 hover:bg-white/10 py-2.5 rounded-xl text-xs font-bold transition-colors"
+                className="flex-1 bg-[#1c1c1c] hover:bg-[#262626] py-3 rounded-xl text-xs font-bold transition-all active:scale-95 text-white"
               >
                 Batal
               </button>
               <button
                 onClick={() => promptModal.onConfirm(promptModal.value)}
-                className={cn("flex-1 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 text-white", accentStyle.bg, accentStyle.glow)}
+                className={cn("flex-1 py-3 rounded-xl text-xs font-bold transition-all active:scale-95 text-white", accentStyle.bg)}
               >
                 Simpan
               </button>

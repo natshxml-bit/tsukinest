@@ -9,7 +9,8 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api-proxy/:path*',
-        destination: 'https://cnest.up.railway.app/:path*',
+        // 🔥 Ubah destination ke API Railway lu
+        destination: 'https://nest-network.up.railway.app/:path*',
       },
     ];
   },
@@ -27,6 +28,14 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'kacu.gmbr.pro',
       },
+      {
+        protocol: 'https',
+        hostname: 'thumbnail.komiku.org',
+      },
+      {
+        protocol: 'https',
+        hostname: 'komiku.org',
+      }
     ],
   },
 };

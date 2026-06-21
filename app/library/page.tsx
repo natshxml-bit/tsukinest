@@ -1,12 +1,8 @@
-// ============================================
-// FIX: LibraryPage - Bookmark Thumbnail Handler
-// ============================================
-
+// app/library/page.tsx
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { auth, db } from "@/lib/firebase";
 import {
   collection,
@@ -16,11 +12,11 @@ import {
   writeBatch,
   orderBy,
   getDocs,
-  deleteDoc,
 } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { MangaItem } from "@/lib/api";
 import { useAccent } from "@/lib/accent";
+import { ImageIcon, Heart, Bookmark as BookmarkIcon, Clock } from "lucide-react";
 
 interface LibraryItem extends MangaItem {
   id: string;
@@ -30,22 +26,162 @@ interface LibraryItem extends MangaItem {
   lastReadAt?: number;
   totalChapters?: number;
   status?: "ongoing" | "completed" | "hiatus";
-  // Tambahan field yang mungkin beda antara bookmark & history
-  poster?: string;        // Field alternatif dari manhwaindo
-  cover?: string;         // Field alternatif
-  image?: string;         // Field alternatif
-  thumbnail?: string;     // Field alternatif
-  thumb_url?: string;     // Field alternatif
+  poster?: string;
+  cover?: string;
+  image?: string;
+  thumbnail?: string;
+  thumb_url?: string;
 }
 
-type TabType = "bookmark" | "history";
+type TabType = "bookmark" | "like" | "history";
 type SortType = "newest" | "oldest" | "alpha" | "updated";
 type ViewType = "grid" | "list";
+
+function cn(...classes: (string | false | null | undefined)[]) {
+  return classes.filter(Boolean).join(" ");
+}
+
+function formatTypeWithFlag(rawType: string): string {
+  if (!rawType) return "🇯🇵 MANGA";
+  const t = rawType.toUpperCase();
+  if (t.includes("MANHWA")) return "🇰🇷 MANHWA";
+  if (t.includes("MANHUA")) return "🇨🇳 MANHUA";
+  if (t.includes("MANGA")) return "🇯🇵 MANGA";
+  return t;
+}
+
+function cleanThumbRaw(item: LibraryItem): string {
+  const candidates = [
+    item.thumb,
+    item.poster,
+    item.cover,
+    item.image,
+    item.thumbnail,
+    item.thumb_url,
+  ];
+  for (const raw of candidates) {
+    if (!raw || typeof raw !== "string") continue;
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    if (trimmed.startsWith("http") || trimmed.startsWith("/")) return trimmed;
+    if (trimmed.includes("<img")) {
+      const match = trimmed.match(/src=["']([^"']+)["']/i);
+      if (match && match[1]) return match[1];
+    }
+    if (trimmed.includes("src=")) {
+      const match = trimmed.match(/src=["']([^"']+)["']/i);
+      if (match && match[1]) return match[1];
+    }
+    if (trimmed.startsWith("data:image")) return trimmed;
+  }
+  return "/no-image.png";
+}
+
+function cleanThumbUrl(url: string): string {
+  if (!url) return "/no-image.png";
+  if (url.includes("<")) {
+    const match = url.match(/src=["']([^"']+)["']/i);
+    if (match) return match[1];
+  }
+  if (url.startsWith("http") && !url.includes("wsrv.nl") && !url.includes("anilist.co")) {
+    return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=400&output=webp&q=70`;
+  }
+  return url;
+}
+
+function getOriginalUrl(url: string): string {
+  if (!url) return "";
+  try {
+    if (url.includes("wsrv.nl")) {
+      const urlObj = new URL(url);
+      const originalUrl = urlObj.searchParams.get("url");
+      if (originalUrl) return decodeURIComponent(originalUrl);
+    }
+  } catch { /* ignore */ }
+  let finalUrl = url;
+  if (finalUrl.includes("<")) {
+    const match = finalUrl.match(/src=["']([^"']+)["']/i);
+    if (match) finalUrl = match[1];
+  }
+  return finalUrl;
+}
+
+// ─── SMART IMAGE ───
+const SmartImage = memo(function SmartImage({
+  src, alt, title, fill, className = "", priority, ...props
+}: any) {
+  const [imgSrc, setImgSrc] = useState(src || "/no-image.png");
+  const [loaded, setLoaded] = useState(false);
+  const [hasTriedOriginal, setHasTriedOriginal] = useState(false);
+  const [hasTriedAniList, setHasTriedAniList] = useState(false);
+
+  const fetchAniListFallback = async () => {
+    if (hasTriedAniList) return;
+    setHasTriedAniList(true);
+    try {
+      const cleanTitle = (title || "").split(/[-–—~,|:]/)[0].replace(/[★☆]/g, " ").trim();
+      const query = `query ($search: String) { Media (search: $search, type: MANGA) { coverImage { extraLarge large } } }`;
+      const res = await fetch("https://graphql.anilist.co", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, variables: { search: cleanTitle } }),
+      });
+      if (!res.ok) { setImgSrc("/no-image.png"); return; }
+      const json = await res.json();
+      const altPoster = json?.data?.Media?.coverImage?.extraLarge || json?.data?.Media?.coverImage?.large;
+      setImgSrc(altPoster || "/no-image.png");
+    } catch { setImgSrc("/no-image.png"); }
+  };
+
+  useEffect(() => {
+    setLoaded(false);
+    const isPlaceholder = !src || src.includes("via.placeholder.com") || src.includes("no-image.png");
+    if (isPlaceholder) fetchAniListFallback();
+    else { setImgSrc(src); setHasTriedOriginal(false); setHasTriedAniList(false); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [src]);
+
+  const handleLoad = () => setLoaded(true);
+
+  const handleError = () => {
+    if (imgSrc.includes("wsrv.nl") && !hasTriedOriginal) {
+      setHasTriedOriginal(true);
+      const original = getOriginalUrl(imgSrc);
+      if (original && original !== imgSrc) { setImgSrc(original); return; }
+    }
+    fetchAniListFallback();
+  };
+
+  if (imgSrc === "/no-image.png" && loaded) {
+    return (
+      <div className={cn("bg-[#1c1c1c] flex flex-col items-center justify-center text-center p-2", fill ? "absolute inset-0 w-full h-full" : "w-full h-full", className)}>
+        <ImageIcon className="text-neutral-700 w-6 h-6 mb-1" />
+        <span className="text-[10px] text-neutral-600 font-medium line-clamp-2 px-1">{alt}</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={imgSrc}
+      alt={alt}
+      onLoad={handleLoad}
+      onError={handleError}
+      className={cn(
+        fill ? "absolute inset-0 w-full h-full object-cover" : "",
+        "transition-opacity duration-500",
+        loaded ? "opacity-100" : "opacity-0",
+        className
+      )}
+      {...(priority ? { fetchPriority: "high" as any } : {})}
+      {...props}
+    />
+  );
+});
 
 export default function LibraryPage() {
   const { accent, style: accentStyle } = useAccent();
 
-  const [activeTab, setActiveTab] = useState<TabType>("bookmark");
+  const [activeTab, setActiveTab] = useState<TabType>("like");
   const [libraryData, setLibraryData] = useState<LibraryItem[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
@@ -109,7 +245,7 @@ export default function LibraryPage() {
     setSelectedIds(new Set());
     setSearchQuery("");
 
-    const colName = activeTab === "bookmark" ? "bookmarks" : "history";
+    const colName = activeTab === "like" ? "likes" : activeTab === "history" ? "history" : "bookmarks";
     const q = query(
       collection(db, "users", user.uid, colName),
       orderBy("savedAt", "desc")
@@ -121,15 +257,6 @@ export default function LibraryPage() {
         const data: LibraryItem[] = [];
         snapshot.forEach((d) => {
           const rawData = d.data();
-          // DEBUG: Log struktur data untuk analisis
-          console.log(`[${activeTab}] Doc ${d.id}:`, {
-            thumb: rawData.thumb,
-            poster: rawData.poster,
-            cover: rawData.cover,
-            image: rawData.image,
-            thumbnail: rawData.thumbnail,
-            title: rawData.title,
-          });
           data.push({ id: d.id, ...rawData } as LibraryItem);
         });
         setLibraryData(data);
@@ -230,7 +357,7 @@ export default function LibraryPage() {
         setConfirmModal((p) => ({ ...p, show: false }));
         setIsLoadingData(true);
         try {
-          const colName = activeTab === "bookmark" ? "bookmarks" : "history";
+          const colName = activeTab === "like" ? "likes" : activeTab === "history" ? "history" : "bookmarks";
           const batch = writeBatch(db);
           selectedIds.forEach((id) => {
             batch.delete(doc(db, "users", user.uid, colName, id));
@@ -252,14 +379,14 @@ export default function LibraryPage() {
     if (!user || libraryData.length === 0) return;
     setConfirmModal({
       show: true,
-      title: `Kosongkan ${activeTab === "bookmark" ? "Bookmark" : "History"}`,
+      title: `Kosongkan ${activeTab === "like" ? "Disukai" : activeTab === "history" ? "History" : "Bookmark"}`,
       message: `Anda yakin ingin menghapus semua ${libraryData.length} item? Tindakan ini tidak bisa dibatalkan.`,
       variant: "danger",
       onConfirm: async () => {
         setConfirmModal((p) => ({ ...p, show: false }));
         setIsLoadingData(true);
         try {
-          const colName = activeTab === "bookmark" ? "bookmarks" : "history";
+          const colName = activeTab === "like" ? "likes" : activeTab === "history" ? "history" : "bookmarks";
           const snapshot = await getDocs(
             collection(db, "users", user.uid, colName)
           );
@@ -311,63 +438,6 @@ export default function LibraryPage() {
     if (d < 365) return `${Math.floor(d / 30)} bln`;
     return `${Math.floor(d / 365)} thn`;
   };
-
-  // ============================================
-  // CORE FIX: Universal Thumbnail Extractor
-  // ============================================
-  const cleanThumb = useCallback((item: LibraryItem): string => {
-    // Priority extraction dari berbagai field yang mungkin ada
-    const candidates = [
-      item.thumb,
-      item.poster,
-      item.cover,
-      item.image,
-      item.thumbnail,
-      item.thumb_url,
-    ];
-
-    for (const raw of candidates) {
-      if (!raw || typeof raw !== "string") continue;
-      
-      const trimmed = raw.trim();
-      if (!trimmed) continue;
-
-      // Case 1: Direct URL (http/https atau relative path)
-      if (trimmed.startsWith("http") || trimmed.startsWith("/")) {
-        return trimmed;
-      }
-
-      // Case 2: HTML img tag: <img src="..." ...>
-      if (trimmed.includes("<img")) {
-        const match = trimmed.match(/src=["']([^"']+)["']/i);
-        if (match && match[1]) return match[1];
-      }
-
-      // Case 3: HTML dengan tag lain yang punya src
-      if (trimmed.includes("src=")) {
-        const match = trimmed.match(/src=["']([^"']+)["']/i);
-        if (match && match[1]) return match[1];
-      }
-
-      // Case 4: Data URI (base64 image)
-      if (trimmed.startsWith("data:image")) {
-        return trimmed;
-      }
-
-      // Case 5: Mungkin string JSON yang ter-escape
-      try {
-        const parsed = JSON.parse(trimmed);
-        if (parsed && typeof parsed === "string") return parsed;
-        if (parsed && parsed.url) return parsed.url;
-        if (parsed && parsed.src) return parsed.src;
-      } catch {
-        // Not JSON, skip
-      }
-    }
-
-    // Fallback: no-image placeholder
-    return "/no-image.png";
-  }, []);
 
   const sortOptions: { key: SortType; label: string }[] = [
     { key: "newest", label: "Terbaru" },
@@ -445,13 +515,14 @@ export default function LibraryPage() {
           {/* Tab Switcher */}
           <div className="flex gap-1 mb-3">
             {[
-              { key: "bookmark" as TabType, label: "Bookmark" },
-              { key: "history" as TabType, label: "History" },
+              { key: "bookmark" as TabType, label: "Bookmark", icon: <BookmarkIcon className="w-4 h-4" /> },
+              { key: "like" as TabType, label: "Disukai", icon: <Heart className={cn("w-4 h-4", activeTab === "like" && "fill-current")} /> },
+              { key: "history" as TabType, label: "Riwayat", icon: <Clock className="w-4 h-4" /> },
             ].map((t) => (
               <button
                 key={t.key}
                 onClick={() => setActiveTab(t.key)}
-                className={`relative flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${
+                className={`relative flex-1 py-2.5 text-[11px] sm:text-xs font-bold rounded-xl transition-all duration-300 ${
                   activeTab === t.key
                     ? "text-white"
                     : "text-gray-500 hover:text-gray-300"
@@ -461,10 +532,10 @@ export default function LibraryPage() {
                   <div className="absolute inset-0 bg-white/10 rounded-xl border border-white/10 shadow-[0_0_15px_rgba(255,255,255,0.05)]" />
                 )}
                 <span className="relative z-10 flex items-center justify-center gap-1.5">
-                  <span>{t.icon}</span>
+                  {t.icon}
                   {t.label}
                   {activeTab === t.key && (
-                    <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-md bg-white/20">
+                    <span className="ml-0.5 text-[9px] px-1.5 py-0.5 rounded-md bg-white/20">
                       {libraryData.length}
                     </span>
                   )}
@@ -472,7 +543,7 @@ export default function LibraryPage() {
 
                 {activeTab === t.key && (
                   <div
-                    className={`absolute -bottom-[9px] left-1/2 -translate-x-1/2 w-8 h-1 ${accentStyle.bg} rounded-full ${accentStyle.glow}`}
+                    className={`absolute -bottom-[9px] left-1/2 -translate-x-1/2 w-6 h-1 ${accentStyle.bg} rounded-full ${accentStyle.glow}`}
                   />
                 )}
               </button>
@@ -618,7 +689,7 @@ export default function LibraryPage() {
                 {filteredData.length} dari {libraryData.length} item
                 {searchQuery && " (terfilter)"}
               </span>
-              {hasUpdates > 0 && activeTab === "bookmark" && (
+              {hasUpdates > 0 && (activeTab === "bookmark" || activeTab === "like") && (
                 <span className="text-red-400 font-medium flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                   {hasUpdates} update baru
@@ -774,7 +845,7 @@ export default function LibraryPage() {
                 Hapus Pencarian
               </button>
             )}
-            {!searchQuery && activeTab === "bookmark" && (
+            {!searchQuery && (activeTab === "bookmark" || activeTab === "like") && (
               <Link href="/" className="mt-4">
                 <button
                   className={`px-4 py-2 rounded-xl ${accentStyle.bg} text-white text-xs font-bold transition-all hover:brightness-110`}
@@ -793,8 +864,8 @@ export default function LibraryPage() {
               const isSelected = selectedIds.has(manga.id);
               const hasUpdate =
                 manga.updatedAt && manga.updatedAt > (manga.savedAt || 0);
-              // FIX: Pass entire item object instead of just string
-              const thumbUrl = cleanThumb(manga);
+              const thumbUrl = cleanThumbUrl(cleanThumbRaw(manga));
+              const typeLabel = formatTypeWithFlag(manga.type || "");
 
               const CardContent = (
                 <div
@@ -811,21 +882,8 @@ export default function LibraryPage() {
                   }`}
                 >
                   <div className="absolute top-2 left-2 z-20 flex flex-col gap-1.5 pointer-events-none">
-                    <span className="px-2 py-1 rounded-lg bg-black/60 backdrop-blur-md text-[10px] font-bold text-white border border-white/5 flex items-center gap-1">
-                      <svg
-                        className="w-3 h-3"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      {getRelativeTime(manga.savedAt)}
+                    <span className="px-1.5 py-[2px] rounded-md text-[8px] font-bold text-white/90 uppercase bg-black/70 border border-white/10 tracking-wide">
+                      {typeLabel}
                     </span>
                     {hasUpdate && (
                       <span className="px-2 py-1 rounded-lg bg-red-500 text-white text-[10px] font-black border border-red-400/50 shadow-lg shadow-red-500/20 animate-pulse">
@@ -839,18 +897,13 @@ export default function LibraryPage() {
                     )}
                   </div>
 
-                  {/* FIX: Add error handler for broken images */}
-                  <Image
+                  <SmartImage
                     src={thumbUrl}
                     alt={cleanTitle}
+                    title={cleanTitle}
                     fill
-                    unoptimized
-                    onError={(e) => {
-                      // Fallback ke placeholder jika image gagal load
-                      (e.target as HTMLImageElement).src = "/no-image.png";
-                    }}
+                    loading="lazy"
                     className="object-cover transition-transform duration-500 group-hover:scale-110"
-                    sizes="(max-width: 768px) 33vw, 20vw"
                   />
 
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0F0F12] via-[#0F0F12]/40 to-transparent opacity-90 pointer-events-none" />
@@ -922,8 +975,8 @@ export default function LibraryPage() {
               const isSelected = selectedIds.has(manga.id);
               const hasUpdate =
                 manga.updatedAt && manga.updatedAt > (manga.savedAt || 0);
-              // FIX: Pass entire item object
-              const thumbUrl = cleanThumb(manga);
+              const thumbUrl = cleanThumbUrl(cleanThumbRaw(manga));
+              const typeLabel = formatTypeWithFlag(manga.type || "");
 
               return (
                 <div
@@ -972,16 +1025,13 @@ export default function LibraryPage() {
                     href={`/detail/${manga.slug}`}
                     className="flex-shrink-0 relative w-14 h-[4.5rem] rounded-lg overflow-hidden ring-1 ring-white/5"
                   >
-                    <Image
+                    <SmartImage
                       src={thumbUrl}
                       alt={cleanTitle}
+                      title={cleanTitle}
                       fill
-                      unoptimized
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "/no-image.png";
-                      }}
+                      loading="lazy"
                       className="object-cover"
-                      sizes="56px"
                     />
                     {hasUpdate && (
                       <div className="absolute top-0.5 left-0.5 w-2 h-2 rounded-full bg-red-500 border border-black" />
@@ -989,6 +1039,11 @@ export default function LibraryPage() {
                   </Link>
 
                   <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="px-1 py-[1px] rounded text-[7px] font-bold text-white/80 uppercase bg-black/70 border border-white/10 tracking-wide">
+                        {typeLabel}
+                      </span>
+                    </div>
                     <h3 className="text-sm font-bold text-white truncate leading-tight">
                       {cleanTitle}
                     </h3>
@@ -1024,16 +1079,17 @@ export default function LibraryPage() {
                     </div>
                   </div>
 
-                  {!isEditMode && activeTab === "history" && manga.slug && (
-                    <Link
-                      href={`/read/${manga.slug}`}
-                      className={`flex-shrink-0 px-3 py-1.5 rounded-lg ${accentStyle.soft} ${accentStyle.text} text-xs font-bold border ${accentStyle.border} hover:brightness-125 transition-all`}
-                    >
-                      Lanjut
-                    </Link>
-                  )}
+                  {!isEditMode && activeTab === "history" && (manga.chapter_slug || manga.slug) && (
+  <Link
+    href={`/read/${manga.chapter_slug || manga.slug}`}
+    className={`flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#1c1c1c] ${accentStyle.text} text-xs font-bold hover:bg-[#262626] transition-all`}
+  >
+    Lanjut
+  </Link>
+)}
 
-                  {!isEditMode && activeTab === "bookmark" && hasUpdate && (
+
+                  {!isEditMode && (activeTab === "bookmark" || activeTab === "like") && hasUpdate && (
                     <div className="flex-shrink-0 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                   )}
                 </div>
