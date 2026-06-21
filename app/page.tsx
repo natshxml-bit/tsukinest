@@ -235,20 +235,18 @@ const SmartImage = memo(function SmartImage({
   fill,
   className = "",
   priority,
-  sizes, // Ditangkap agar warning next/image hilang
-  unoptimized, // Ditangkap agar warning next/image hilang
+  sizes,
+  unoptimized,
   ...props 
 }: any) {
   const [imgSrc, setImgSrc] = useState(src || "/no-image.png");
   const [hasTriedAniList, setHasTriedAniList] = useState(false);
 
-  // Fungsi khusus untuk nembak AniList
   const fetchAniListFallback = async () => {
     if (hasTriedAniList) return;
     setHasTriedAniList(true);
 
     try {
-      // Bersihkan judul dari simbol/embel-embel
       const cleanTitle = title.split(/[-–—~,|:]/)[0].replace(/[★☆]/g, " ").trim();
       const query = `
         query ($search: String) {
@@ -286,29 +284,24 @@ const SmartImage = memo(function SmartImage({
   };
 
   useEffect(() => {
-    // CEK CERDAS: Kalau src-nya dari backend adalah via.placeholder atau kosong
     const isPlaceholder = 
-  !src || 
-  src.includes("via.placeholder.com") || 
-  src.includes("no-image.png");
-   // <-- Paksa AniList khusus buat Lookism
-
+      !src || 
+      src.includes("via.placeholder.com") || 
+      src.includes("no-image.png") ||
+      title?.toLowerCase().includes("lookism");
 
     if (isPlaceholder) {
-      // Langsung tembak AniList secara otomatis!
       fetchAniListFallback();
     } else {
       setImgSrc(src);
       setHasTriedAniList(false);
     }
-  }, [src]);
+  }, [src, title]);
 
   const handleError = () => {
-    // Kalau gambar utamanya beneran error (broken link), tembak AniList
     fetchAniListFallback();
   };
 
-  // Tampilan placeholder jika AniList juga gak punya gambarnya
   if (imgSrc === "/no-image.png") {
     return (
       <div
@@ -323,7 +316,6 @@ const SmartImage = memo(function SmartImage({
     );
   }
 
-  // Pakai tag <img> biasa aja biar gampang handle external URL dinamis
   return (
     <img 
       src={imgSrc} 
@@ -357,7 +349,7 @@ function Header({
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-white/[0.05]">
       <div className="max-w-md mx-auto flex items-center justify-between px-4 h-14">
-        <Link href="/profile" className="flex items-center gap-3 active:scale-95 transition-transform duration-150">
+        <Link href="/profile" prefetch={false} className="flex items-center gap-3 active:scale-95 transition-transform duration-150">
           <div className="relative">
             <div className="w-9 h-9 rounded-full bg-[#1c1c1c] overflow-hidden flex items-center justify-center ring-1 ring-white/10">
               {photoURL ? (
@@ -450,6 +442,7 @@ function QuickSearchBar({ open, onClose, accentStyle }: { open: boolean; onClose
               <Link
                 key={genre}
                 href={`/genre/${genre.toLowerCase().replace(/\s+/g, "-")}`}
+                prefetch={false}
                 onClick={onClose}
                 className="px-3 py-2 rounded-lg bg-[#1c1c1c] border border-white/[0.06] text-xs text-neutral-300 hover:bg-[#262626] transition-colors"
               >
@@ -545,6 +538,7 @@ function NotifPopup({
                 {items.slice(0, 8).map((item) => (
                   <Link
                     href={`/detail/${item.slug}`}
+                    prefetch={false}
                     onClick={() => { onMarkRead(); onClose(); }}
                     key={item.slug}
                     className="flex gap-3 items-center p-3 rounded-xl hover:bg-white/[0.03] transition-colors active:scale-[0.98]"
@@ -659,7 +653,7 @@ function HeroCarousel({ items, accentStyle }: { items: MangaItem[]; accentStyle:
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <Link href={`/detail/${active.slug}`} className="block w-full active:scale-[0.99] transition-transform duration-200">
+      <Link href={`/detail/${active.slug}`} prefetch={false} className="block w-full active:scale-[0.99] transition-transform duration-200">
         <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-[#141414]">
           <SmartImage
             src={active.thumb || "/no-image.png"}
@@ -759,7 +753,7 @@ function SectionHeader({
       </div>
       {rightContent ||
         (actionLabel && (
-          <Link href={actionHref} className="text-xs text-neutral-500 hover:text-white transition-colors flex items-center gap-0.5 shrink-0">
+          <Link href={actionHref} prefetch={false} className="text-xs text-neutral-500 hover:text-white transition-colors flex items-center gap-0.5 shrink-0">
             {actionLabel} <ChevronRight className="w-3 h-3" />
           </Link>
         ))}
@@ -783,7 +777,7 @@ const MangaCard = memo(function MangaCard({
   const thumb = item.thumb;
 
   return (
-    <Link href={`/detail/${item.slug}`} className="block h-full active:scale-95 transition-transform duration-150">
+    <Link href={`/detail/${item.slug}`} prefetch={false} className="block h-full active:scale-95 transition-transform duration-150">
       <div className="flex flex-col h-full">
         <div className="relative overflow-hidden rounded-xl bg-[#141414] aspect-[2/3] mb-2">
           <SmartImage
@@ -859,6 +853,7 @@ const NewReleaseCard = memo(function NewReleaseCard({
   return (
     <Link
       href={`/detail/${item.slug}`}
+      prefetch={false}
       className="block flex-shrink-0 w-[150px] active:scale-95 transition-transform duration-150"
     >
       <div className="relative overflow-hidden rounded-xl bg-[#141414] aspect-[2/3] mb-2">
@@ -922,6 +917,7 @@ const ProjectCard = memo(function ProjectCard({
   return (
     <Link
       href={`/detail/${item.slug}`}
+      prefetch={false}
       className="flex gap-3 items-center p-2 -mx-2 rounded-xl active:scale-[0.98] transition-transform duration-150"
     >
       {/* Thumbnail bersih — cuma NEW/HOT */}
@@ -1017,6 +1013,7 @@ function RecentReads({ reads, accent, accentStyle }: { reads: RecentRead[]; acce
             <Link
               key={`${read.slug}-${read.timestamp}`}
               href={`/read/${read.slug}`}
+              prefetch={false}
               className="flex-shrink-0 w-[120px] active:scale-95 transition-transform"
             >
               <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-[#141414] mb-2">
@@ -1117,19 +1114,10 @@ function SkeletonProject() {
 
 function ErrorState({ onRetry, accentStyle }: { onRetry: () => void; accentStyle: any }) {
   return (
-<<<<<<< HEAD
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
       <AlertCircle className="w-10 h-10 text-neutral-600 mb-3" />
       <h3 className="text-white font-semibold text-base mb-1">Gagal memuat data</h3>
       <p className="text-neutral-500 text-sm mb-5">Cek koneksi internet atau coba lagi</p>
-=======
-    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mb-4">
-        <AlertCircle className="w-8 h-8 text-red-400" />
-      </div>
-      <h3 className="text-white font-semibold mb-1">Gagal Wait For update </h3>
-      <p className="text-gray-500 text-sm mb-4">Cek MAINTANCE</p>
->>>>>>> 9902aafb9269c211423edc167db0ace2b2cd041c
       <button
         onClick={onRetry}
         className={cn(

@@ -149,9 +149,6 @@ export async function getDetail(slug: string): Promise<DetailApiResponse | null>
   if (res && res.data) {
     res.data.type = formatMangaType(res.data.type);
     
-    // Poster injeksi dari AniList dihapus dari sini karena SmartImage di UI
-    // sudah otomatis menangani pencarian gambar alternatif tanpa bikin web crash.
-
     if (res.data.recommendations) {
       res.data.recommendations = applyFlagsToItems(res.data.recommendations);
     }
@@ -167,6 +164,23 @@ export async function searchManga(q: string, page = 1): Promise<SearchApiRespons
   const res = await fetcher<SearchApiResponse>(`/search?q=${encodeURIComponent(q)}&page=${page}`);
   if (res && res.data && res.data.comics) {
     res.data.comics = applyFlagsToItems(res.data.comics);
+  }
+  return res;
+}
+
+// FIX: Tambahin fungsi getGenre di sini biar Vercel nggak error
+export async function getGenre(genreSlug: string, page = 1): Promise<any | null> {
+  const res = await fetcher<any>(`/genre/${genreSlug}?page=${page}`);
+  
+  if (res && res.data) {
+    // Kalau response API balikin list array langsung
+    if (Array.isArray(res.data)) {
+      res.data = applyFlagsToItems(res.data);
+    } 
+    // Kalau response API balikin object { results: [...] }
+    else if (res.data.results && Array.isArray(res.data.results)) {
+      res.data.results = applyFlagsToItems(res.data.results);
+    }
   }
   return res;
 }
