@@ -20,9 +20,10 @@ export default function RootLayout({
       <head>
         <script
           async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6496949565578713"
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6496945565378713"
           crossOrigin="anonymous"
         ></script>
+        <meta name="google-adsense-account" content="ca-pub-6496945565378713" />
       </head>
       <body className={`${inter.className} bg-gray-950`}>
         <div className="max-w-md mx-auto min-h-screen bg-gray-950 shadow-xl shadow-black/40">
