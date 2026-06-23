@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import BottomNav from "@/components/BottomNav"; // 👈 Import komponen navbar baru
+import BottomNav from "@/components/BottomNav";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -17,13 +17,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id">
+      <head>
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6496949565578713"
+          crossOrigin="anonymous"
+        ></script>
+      </head>
       <body className={`${inter.className} bg-gray-950`}>
-        {/* Wrapper max-width agar tampilan konsisten mobile-first */}
         <div className="max-w-md mx-auto min-h-screen bg-gray-950 shadow-xl shadow-black/40">
           {children}
         </div>
-        
-        {/* 🔥 Masukin BottomNav di sini agar selalu stand-by melayang di bawah */}
         <BottomNav />
       </body>
     </html>
