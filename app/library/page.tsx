@@ -1079,9 +1079,9 @@ export default function LibraryPage() {
                     </div>
                   </div>
 
-                  {!isEditMode && activeTab === "history" && (manga.chapter_slug || manga.slug) && (
+                  {!isEditMode && activeTab === "history" && ((manga as any).chapter_slug || manga.slug) && (
   <Link
-    href={`/read/${manga.chapter_slug || manga.slug}`}
+    href={`/read/${(manga as any).chapter_slug || manga.slug}`}
     className={`flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#1c1c1c] ${accentStyle.text} text-xs font-bold hover:bg-[#262626] transition-all`}
   >
     Lanjut
