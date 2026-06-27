@@ -409,7 +409,7 @@ export default function GenrePage() {
     if (sortBy === "latest") return items;
     const copy = [...items];
     if (sortBy === "rating") {
-      copy.sort((a, b) => parseFloat(b.rating) - parseFloat(a.rating));
+copy.sort((a, b) => (parseFloat(b.rating || '0') || 0) - (parseFloat(a.rating || '0') || 0));
     } else if (sortBy === "popular") {
       copy.sort((a, b) => (b.is_hot ? 1 : 0) - (a.is_hot ? 1 : 0));
     }
