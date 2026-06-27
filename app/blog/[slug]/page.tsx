@@ -425,7 +425,7 @@ const blogPosts: Record<string, BlogPost> = {
       <div class="bg-[#141414] border border-white/[0.05] rounded-xl p-5 mt-6">
         <h3 class="text-sm font-bold mb-2 text-white">💖 Siap Merasakan Baper?</h3>
         <p class="text-neutral-500 text-xs mb-4 leading-relaxed">Kunjungi halaman All Series dengan filter Romance aktif untuk menemukan ratusan judul manhwa cinta lainnya.</p>
-        <a href="/all?genre=romance" class="inline-flex items-center gap-2 bg-[#1c1c1c] border border-white/[0.06] hover:bg-[#262626] text-neutral-300 text-xs px-4 py-2.5 rounded-lg transition-colors active:scale-95">Baca Romance di TsukiNest <ChevronRight class="w-3 h-3" /></a>
+        <a href="/all?genre=16" class="inline-flex items-center gap-2 bg-[#1c1c1c] border border-white/[0.06] hover:bg-[#262626] text-neutral-300 text-xs px-4 py-2.5 rounded-lg transition-colors active:scale-95">Baca Romance di TsukiNest <ChevronRight class="w-3 h-3" /></a>
       </div>
     `,
   },
