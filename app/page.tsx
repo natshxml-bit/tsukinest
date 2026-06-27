@@ -1358,11 +1358,11 @@ const currentSlugs = latest.map((i: { slug: string }) => i.slug);
                   className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4"
                   style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
                 >
-                  {popular.map((item, i) => (
-                    <div key={`${item.slug}-${i}`} className="flex-shrink-0 w-[132px]">
-                      <MangaCard item={item} variant="compact" index={i} accent={accent} accentStyle={accentStyle} />
-                    </div>
-                  ))}
+{popular.map((item: MangaItem, i: number) => (
+  <div key={`${item.slug}-${i}`} className="flex-shrink-0 w-[132px]">
+    <MangaCard item={item} variant="compact" index={i} accent={accent} accentStyle={accentStyle} />
+  </div>
+))}
                 </div>
               )}
             </section>
