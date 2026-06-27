@@ -1267,7 +1267,7 @@ export default function HomePage() {
     if (latest.length === 0) return;
     const seen = getSeenSlugs();
 const currentSlugs = latest.map((i: { slug: string }) => i.slug);
-    const hasNew = currentSlugs.some((s) => !seen.includes(s));
+    const hasNew = currentSlugs.some((s: string) => !seen.includes(s));
     setHasUnreadManga(hasNew);
   }, [latest]);
 
