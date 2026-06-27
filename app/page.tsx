@@ -1266,7 +1266,7 @@ export default function HomePage() {
   useEffect(() => {
     if (latest.length === 0) return;
     const seen = getSeenSlugs();
-    const currentSlugs = latest.map((i) => i.slug);
+const currentSlugs = latest.map((i: { slug: string }) => i.slug);
     const hasNew = currentSlugs.some((s) => !seen.includes(s));
     setHasUnreadManga(hasNew);
   }, [latest]);
