@@ -1,34 +1,126 @@
+// app/layout.tsx
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import { Toaster } from "react-hot-toast";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ 
+  subsets: ["latin"],
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
-  title: "TsukiNest - Baca Manhwa Bahasa Indonesia",
-  description: "Platform baca manhwa terupdate dan terlengkap",
+  metadataBase: new URL('https://tsukinest.my.id'),
+  title: {
+    default: 'TsukiNest - Baca Manhwa, Manhua & Manga Bahasa Indonesia',
+    template: '%s | TsukiNest',
+  },
+  description: 'Platform baca manhwa, manhua, dan manga bahasa Indonesia terlengkap dan terupdate setiap hari. Baca Lookism, Solo Leveling, God-level Assassin, dan ribuan judul lainnya gratis!',
+  keywords: [
+    'baca manhwa',
+    'baca manhua',
+    'baca manga',
+    'manhwa indonesia',
+    'manhua indonesia',
+    'manga indonesia',
+    'komik asia',
+    'webtoon indonesia',
+    'tsukinest',
+    'lookism',
+    'solo leveling',
+  ],
+  authors: [
+    { name: 'TsukiNest', url: 'https://tsukinest.my.id' }
+  ],
+  creator: 'TsukiNest',
+  publisher: 'TsukiNest',
+  openGraph: {
+    type: 'website',
+    locale: 'id_ID',
+    url: 'https://tsukinest.my.id',
+    siteName: 'TsukiNest',
+    title: 'TsukiNest - Baca Manhwa, Manhua & Manga Bahasa Indonesia',
+    description: 'Platform baca manhwa, manhua, dan manga bahasa Indonesia terlengkap dan terupdate setiap hari.',
+    images: [
+      {
+        url: '/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'TsukiNest - Baca Manhwa & Manga Indonesia',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'TsukiNest',
+    description: 'Baca Manhwa, Manhua & Manga Bahasa Indonesia',
+    images: ['/og-image.jpg'],
+    creator: '@tsukinest',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  alternates: {
+    canonical: 'https://tsukinest.my.id',
+  },
+  category: 'entertainment',
+  // ✅ Tambahan verification code (opsional, buat backup)
+  verification: {
+    google: 'tgMxzJ5YEIOEHIEK_BtXsx_R6W99nM0zljfxszvBh5w',
+  },
 };
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
-    <html lang="id">
+    <html lang="id" className={`${inter.variable}`}>
       <head>
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6496945565378713"
-          crossOrigin="anonymous"
-        ></script>
-        <meta name="google-adsense-account" content="ca-pub-6496945565378713" />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <meta name="theme-color" content="#000000" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+        
+        {/* ✅ GOOGLE SEARCH CONSOLE VERIFICATION */}
+        <meta name="google-site-verification" content="tgMxzJ5YEIOEHIEK_BtXsx_R6W99nM0zljfxszvBh5w" />
       </head>
-      <body className={`${inter.className} bg-gray-950`}>
-        <div className="max-w-md mx-auto min-h-screen bg-gray-950 shadow-xl shadow-black/40">
+      <body className={`${inter.className} bg-black text-white antialiased flex flex-col min-h-screen`}>
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              background: '#1a1a1a',
+              color: '#fff',
+              borderRadius: '8px',
+            },
+          }}
+        />
+        
+        {/* Navbar buat Desktop */}
+        <Navbar />
+        
+        {/* Konten Utama */}
+        <main className="flex-grow">
           {children}
-        </div>
+        </main>
+
+        {/* Footer */}
+        <Footer />
+
+        {/* BottomNav buat Mobile */}
         <BottomNav />
       </body>
     </html>

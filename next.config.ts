@@ -1,42 +1,69 @@
-import type { NextConfig } from 'next';
+// next.config.ts
+import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Cukup bypass TypeScript aja
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  async rewrites() {
-    return [
-      {
-        source: '/api-proxy/:path*',
-        // 🔥 Ubah destination ke API Railway lu
-        destination: 'https://nest-network.up.railway.app/:path*',
-      },
-    ];
-  },
   images: {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '**.wp.com',
-      },
-      {
-        protocol: 'http',
-        hostname: 'kacu.gmbr.pro',
-      },
-      {
-        protocol: 'https',
-        hostname: 'kacu.gmbr.pro',
+        hostname: 'assets.shngm.id',
+        port: '',
+        pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: 'thumbnail.komiku.org',
+        hostname: 'res.cloudinary.com',
+        port: '',
+        pathname: '/**',
       },
-      {
-        protocol: 'https',
-        hostname: 'komiku.org',
-      }
     ],
+    formats: ['image/avif', 'image/webp'],
+  },
+  compress: true,
+  poweredByHeader: false,
+  reactStrictMode: true,
+  swcMinify: true,
+  
+  // Security headers
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()',
+          },
+        ],
+      },
+    ];
+  },
+  
+  // Redirects
+  async redirects() {
+    return [
+      {
+        source: '/home',
+        destination: '/',
+        permanent: true,
+      },
+    ];
   },
 };
 
