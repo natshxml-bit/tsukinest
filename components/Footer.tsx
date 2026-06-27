@@ -16,7 +16,7 @@ export default function Footer() {
             </p>
           </div>
 
-          {/* Navigasi & Legal dalam 2 kolom */}
+          {/* 2 Kolom */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <h4 className="text-white font-semibold text-sm mb-3">Navigasi</h4>

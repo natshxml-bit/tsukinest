@@ -4,7 +4,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import FooterWrapper from "@/components/FooterWrapper"; // ✅ Import dari file terpisah
 import { Toaster } from "react-hot-toast";
 
 const inter = Inter({ 
@@ -110,7 +110,7 @@ export default function RootLayout({
           {children}
         </main>
 
-        {/* Footer - Akan di-render conditional di client component */}
+        {/* Footer - Conditional rendering di FooterWrapper */}
         <FooterWrapper />
 
         {/* BottomNav buat Mobile */}
@@ -118,18 +118,4 @@ export default function RootLayout({
       </body>
     </html>
   );
-}
-
-// Wrapper component buat conditional Footer
-function FooterWrapper() {
-  'use client';
-  
-  import { usePathname } from 'next/navigation';
-  
-  const pathname = usePathname();
-  const showFooter = pathname === '/';
-  
-  if (!showFooter) return null;
-  
-  return <Footer />;
 }
