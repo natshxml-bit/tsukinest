@@ -129,7 +129,7 @@ const blogPosts: Record<string, BlogPost> = {
             <span class="text-neutral-500 text-xs">Chapter 202</span>
             <span class="bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] px-2 py-0.5 rounded font-medium">🔥 POPULER</span>
           </div>
-          <p class="text-neutral-400 text-xs leading-relaxed">Iblir Gila yang telah mencapai puncak kekuatan bela diri kembali ke masa lalu. Dengan pengalaman ribuan tahun dan pengetahuan yang tak tertandingi, ia memulai perjalanan baru untuk membalas dendam dan menjadi yang terkuat sekali lagi. Salah satu manhwa cultivation terbaik!</p>
+          <p class="text-neutral-400 text-xs leading-relaxed">Iblis Gila yang telah mencapai puncak kekuatan bela diri kembali ke masa lalu. Dengan pengalaman ribuan tahun dan pengetahuan yang tak tertandingi, ia memulai perjalanan baru untuk membalas dendam dan menjadi yang terkuat sekali lagi. Salah satu manhwa cultivation terbaik!</p>
         </div>
       </div>
 
@@ -141,7 +141,7 @@ const blogPosts: Record<string, BlogPost> = {
       <div class="bg-[#141414] border border-white/[0.05] rounded-xl p-5 mt-6">
         <h3 class="text-sm font-bold mb-2 text-white">🎯 Ingin Membaca Sekarang?</h3>
         <p class="text-neutral-500 text-xs mb-4 leading-relaxed">Semua manhwa di atas telah tersedia di TsukiNest dengan kualitas terjemahan terbaik dan update tercepat. Silakan mulai membaca sekarang juga!</p>
-        <a href="/explore" class="inline-flex items-center gap-2 bg-[#1c1c1c] border border-white/[0.06] hover:bg-[#262626] text-neutral-300 text-xs px-4 py-2.5 rounded-lg transition-colors active:scale-95">Jelajahi Manhwa di TsukiNest <ChevronRight class="w-3 h-3" /></a>
+        <a href="/all" class="inline-flex items-center gap-2 bg-[#1c1c1c] border border-white/[0.06] hover:bg-[#262626] text-neutral-300 text-xs px-4 py-2.5 rounded-lg transition-colors active:scale-95">Jelajahi Manhwa di TsukiNest <ChevronRight class="w-3 h-3" /></a>
       </div>
     `,
   },
@@ -161,8 +161,8 @@ const blogPosts: Record<string, BlogPost> = {
       <p class="text-neutral-400 text-sm leading-relaxed mb-5">Anda dapat menemukan komik dengan beberapa cara mudah:</p>
       <ul class="list-disc list-inside space-y-2 text-neutral-400 text-sm mb-5 ml-2">
         <li>Gunakan fitur <strong class="text-neutral-300">Pencarian (Search)</strong> di bagian atas jika Anda sudah mengetahui judulnya</li>
-        <li>Jelajahi halaman <strong class="text-neutral-300">Explore</strong> untuk menemukan komik berdasarkan kategori</li>
-        <li>Buka halaman <strong class="text-neutral-300">Genre</strong> untuk melihat komik berdasarkan genre seperti Action, Romance, Fantasy, dan lainnya</li>
+        <li>Jelajahi halaman <strong class="text-neutral-300">All Series</strong> dengan fitur filter lengkap untuk menemukan komik berdasarkan genre, tipe, dan status</li>
+        <li>Buka halaman <strong class="text-neutral-300">Latest</strong> untuk melihat update chapter terbaru</li>
         <li>Cek halaman <strong class="text-neutral-300">Popular</strong> untuk melihat komik yang paling banyak dibaca seperti Lookism dan Magic Emperor</li>
       </ul>
 
@@ -200,7 +200,7 @@ const blogPosts: Record<string, BlogPost> = {
       <div class="bg-[#141414] border border-white/[0.05] rounded-xl p-5 mt-6">
         <h3 class="text-sm font-bold mb-2 text-white">🎯 Siap Memulai Petualangan?</h3>
         <p class="text-neutral-500 text-xs mb-4 leading-relaxed">Ribuan judul komik menanti Anda. Selamat membaca dan menikmati pengalaman terbaik di TsukiNest!</p>
-        <a href="/explore" class="inline-flex items-center gap-2 bg-[#1c1c1c] border border-white/[0.06] hover:bg-[#262626] text-neutral-300 text-xs px-4 py-2.5 rounded-lg transition-colors active:scale-95">Mulai Baca Sekarang <ChevronRight class="w-3 h-3" /></a>
+        <a href="/all" class="inline-flex items-center gap-2 bg-[#1c1c1c] border border-white/[0.06] hover:bg-[#262626] text-neutral-300 text-xs px-4 py-2.5 rounded-lg transition-colors active:scale-95">Mulai Baca Sekarang <ChevronRight class="w-3 h-3" /></a>
       </div>
     `,
   },
@@ -301,7 +301,7 @@ const blogPosts: Record<string, BlogPost> = {
   },
 
   // ═══════════════════════════════════════════════════
-  // ARTIKEL 4: ROMANCE
+  // ARTIKEL 4: ROMANCE (FIX: link ke /all?genre=romance)
   // ═══════════════════════════════════════════════════
   "rekomendasi-manhwa-romance-terbaik-2026": {
     title: "10 Rekomendasi Manhwa Romance Terbaik yang Bikin Baper 2026",
@@ -424,15 +424,14 @@ const blogPosts: Record<string, BlogPost> = {
 
       <div class="bg-[#141414] border border-white/[0.05] rounded-xl p-5 mt-6">
         <h3 class="text-sm font-bold mb-2 text-white">💖 Siap Merasakan Baper?</h3>
-        <p class="text-neutral-500 text-xs mb-4 leading-relaxed">Kunjungi kategori Romance kami untuk menemukan ratusan judul manhwa cinta lainnya.</p>
-        <a href="/genre/romance" class="inline-flex items-center gap-2 bg-[#1c1c1c] border border-white/[0.06] hover:bg-[#262626] text-neutral-300 text-xs px-4 py-2.5 rounded-lg transition-colors active:scale-95">Baca Romance di TsukiNest <ChevronRight class="w-3 h-3" /></a>
+        <p class="text-neutral-500 text-xs mb-4 leading-relaxed">Kunjungi halaman All Series dengan filter Romance aktif untuk menemukan ratusan judul manhwa cinta lainnya.</p>
+        <a href="/all?genre=romance" class="inline-flex items-center gap-2 bg-[#1c1c1c] border border-white/[0.06] hover:bg-[#262626] text-neutral-300 text-xs px-4 py-2.5 rounded-lg transition-colors active:scale-95">Baca Romance di TsukiNest <ChevronRight class="w-3 h-3" /></a>
       </div>
     `,
   },
 };
 
 // 3. Tambahkan generateStaticParams untuk Next.js SSG
-// Hal ini sangat dianjurkan untuk data hardcoded sehingga build jauh lebih cepat dan hemat memori
 export function generateStaticParams() {
   return Object.keys(blogPosts).map((slug) => ({
     slug,
@@ -448,7 +447,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   // 4. Perbaikan format plain-text untuk keperluan SEO
-  // Menghapus tag HTML lalu merapikan jeda / spasi panjang (whitespace)
   const plain = post.content
     .replace(/<[^>]*>/g, "")
     .replace(/\s+/g, " ")
@@ -525,7 +523,7 @@ export default async function BlogPostPage({ params }: PageProps) {
               Baca Artikel Lain
             </Link>
             <Link
-              href="/explore"
+              href="/all"
               className="inline-flex items-center gap-2 bg-white text-black hover:bg-neutral-200 text-xs px-4 py-2.5 rounded-lg font-medium transition-colors active:scale-95"
             >
               Jelajahi Manhwa
