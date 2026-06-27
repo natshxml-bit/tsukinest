@@ -9,6 +9,33 @@ export const metadata: Metadata = {
 
 const blogPosts = [
   {
+    slug: "rekomendasi-manhwa-romance-terbaik-2026",
+    title: "10 Rekomendasi Manhwa Romance Terbaik yang Bikin Baper 2026",
+    excerpt: "Kisah cinta yang manis, penuh konflik, dan membuat hati berdebar-debar. Berikut rekomendasi terbaik dari TsukiNest.",
+    date: "2026-06-30",
+    readTime: "7 menit",
+    category: "Rekomendasi",
+    image: "https://i0.wp.com/www.manhwaindo.my/wp-content/uploads/2026/05/1779711467-8854-i507676.jpg",
+  },
+  {
+    slug: "perbedaan-manhwa-manhua-manga",
+    title: "Apa Itu Manhwa? Kenali Perbedaan Manhwa, Manhua, dan Manga",
+    excerpt: "Seringkali pembaca pemula bingung membedakan ketiganya. Padahal, mereka memiliki karakteristik yang berbeda.",
+    date: "2026-06-29",
+    readTime: "5 menit",
+    category: "Edukasi",
+    image: "https://kacu.gmbr.pro/uploads/manga-images/l/lookism/thumbnail.jpg",
+  },
+  {
+    slug: "panduan-membaca-manhwa-di-tsukinest",
+    title: "Panduan Lengkap Membaca Manhwa di TsukiNest untuk Pemula",
+    excerpt: "Baru pertama kali dengar TsukiNest? Ini cara paling gampang buat nyari dan baca komik favoritmu.",
+    date: "2026-06-28",
+    readTime: "4 menit",
+    category: "Tutorial",
+    image: "https://kacu.gmbr.pro/uploads/manga-images/m/magic-emperor/thumbnail.jpeg",
+  },
+  {
     slug: "rekomendasi-manhwa-action-mc-overpowered",
     title: "7 Manhwa Action dengan MC Overpowered yang Wajib Dibaca",
     excerpt: "Suka MC yang kuat dan badass? Ini dia rekomendasi manhwa action dengan MC OP yang bikin puas!",
@@ -16,24 +43,6 @@ const blogPosts = [
     readTime: "6 menit",
     category: "Rekomendasi",
     image: "https://kacu.gmbr.pro/uploads/manga-images/s/solo-max-level-newbie/thumbnail.jpg",
-  },
-  {
-    slug: "panduan-pemula-tsukinest",
-    title: "Panduan Lengkap Membaca Manhwa di TsukiNest untuk Pemula",
-    excerpt: "Baru pertama kali dengar TsukiNest? Ini cara paling gampang buat nyari, nyimpen, dan baca komik favoritmu tanpa ribet.",
-    date: "2026-06-25",
-    readTime: "3 menit",
-    category: "Tutorial",
-    image: "https://via.placeholder.com/800x400/1a1a1a/ffffff?text=Panduan+TsukiNest",
-  },
-  {
-    slug: "apa-itu-manhwa-dan-bedanya-dengan-manga",
-    title: "Apa Itu Manhwa? Kenali Perbedaan Manhwa, Manhua, dan Manga",
-    excerpt: "Sering ketuker bedanya komik Korea, China, dan Jepang? Yuk belajar bedanya biar makin paham pas baca di TsukiNest.",
-    date: "2026-06-27",
-    readTime: "4 menit",
-    category: "Edukasi",
-    image: "https://via.placeholder.com/800x400/1a1a1a/ffffff?text=Manhwa+vs+Manga",
   },
 ];
 
