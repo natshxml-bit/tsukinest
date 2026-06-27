@@ -1273,7 +1273,7 @@ const currentSlugs = latest.map((i: { slug: string }) => i.slug);
 
   const markNotifRead = useCallback(() => {
     if (latest.length === 0) return;
-    const currentSlugs = latest.map((i) => i.slug);
+    const currentSlugs = latest.map((i: { slug: string }) => i.slug);
     saveSeenSlugs(currentSlugs);
     setHasUnreadManga(false);
   }, [latest]);
