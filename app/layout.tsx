@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     default: 'TsukiNest - Baca Manhwa, Manhua & Manga Bahasa Indonesia',
     template: '%s | TsukiNest',
   },
-  description: 'Platform baca manhwa, manhua, dan manga bahasa Indonesia terlengkap dan terupdate setiap hari. Baca Lookism, Solo Leveling, God-level Assassin, dan ribuan judul lainnya gratis!',
+  description: 'Platform baca manhwa, manhua, dan manga bahasa Indonesia terlengkap dan terupdate setiap hari.',
   keywords: [
     'baca manhwa',
     'baca manhua',
@@ -29,8 +29,6 @@ export const metadata: Metadata = {
     'komik asia',
     'webtoon indonesia',
     'tsukinest',
-    'lookism',
-    'solo leveling',
   ],
   authors: [
     { name: 'TsukiNest', url: 'https://tsukinest.my.id' }
@@ -42,14 +40,12 @@ export const metadata: Metadata = {
     locale: 'id_ID',
     url: 'https://tsukinest.my.id',
     siteName: 'TsukiNest',
-    title: 'TsukiNest - Baca Manhwa, Manhua & Manga Bahasa Indonesia',
-    description: 'Platform baca manhwa, manhua, dan manga bahasa Indonesia terlengkap dan terupdate setiap hari.',
     images: [
       {
         url: '/og-image.jpg',
         width: 1200,
         height: 630,
-        alt: 'TsukiNest - Baca Manhwa & Manga Indonesia',
+        alt: 'TsukiNest',
       },
     ],
   },
@@ -75,7 +71,6 @@ export const metadata: Metadata = {
     canonical: 'https://tsukinest.my.id',
   },
   category: 'entertainment',
-  // ✅ Tambahan verification code (opsional, buat backup)
   verification: {
     google: 'tgMxzJ5YEIOEHIEK_BtXsx_R6W99nM0zljfxszvBh5w',
   },
@@ -92,8 +87,6 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <meta name="theme-color" content="#000000" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-        
-        {/* ✅ GOOGLE SEARCH CONSOLE VERIFICATION */}
         <meta name="google-site-verification" content="tgMxzJ5YEIOEHIEK_BtXsx_R6W99nM0zljfxszvBh5w" />
       </head>
       <body className={`${inter.className} bg-black text-white antialiased flex flex-col min-h-screen`}>
@@ -117,12 +110,26 @@ export default function RootLayout({
           {children}
         </main>
 
-        {/* Footer */}
-        <Footer />
+        {/* Footer - Akan di-render conditional di client component */}
+        <FooterWrapper />
 
         {/* BottomNav buat Mobile */}
         <BottomNav />
       </body>
     </html>
   );
+}
+
+// Wrapper component buat conditional Footer
+function FooterWrapper() {
+  'use client';
+  
+  import { usePathname } from 'next/navigation';
+  
+  const pathname = usePathname();
+  const showFooter = pathname === '/';
+  
+  if (!showFooter) return null;
+  
+  return <Footer />;
 }
