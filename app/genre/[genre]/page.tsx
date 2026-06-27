@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 
 import { type MangaItem, getGenre } from "@/lib/api";
-import { useAccent } from "@/lib/accent"; // 👈 IMPORT HOOK ACCENT
+import { useAccent } from "@/lib/accent";
 
 // ═══════════════════════════════════════════════════
 // UTILITIES
@@ -197,7 +197,8 @@ const ListCard = memo(function ListCard({ item, accent, accentStyle }: { item: M
           </p>
         )}
 
-        {item.genres.length > 0 && (
+        {/* ✅ FIX: Pake optional chaining ?. */}
+        {item.genres && item.genres.length > 0 && (
           <div className="mt-2 flex gap-1.5 flex-wrap">
             {item.genres.slice(0, 3).map((g) => (
               <span
@@ -282,7 +283,7 @@ function ErrorState({ onRetry, accentStyle }: { onRetry: () => void; accentStyle
 // ═══════════════════════════════════════════════════
 
 export default function GenrePage() {
-  const { accent, style: accentStyle } = useAccent(); // 👈 INISIALISASI HOOK ACCENT
+  const { accent, style: accentStyle } = useAccent();
 
   const params = useParams();
   const router = useRouter();
@@ -301,7 +302,6 @@ export default function GenrePage() {
   const [showGenreDropdown, setShowGenreDropdown] = useState(false);
   const [genreList, setGenreList] = useState<{ name: string; slug: string }[]>([]);
 
-  // ── Observer target pakai state biar React tahu lifecycle-nya ──
   const [observerTarget, setObserverTarget] = useState<HTMLDivElement | null>(null);
   const isFetchingRef = useRef(false);
 
@@ -309,7 +309,6 @@ export default function GenrePage() {
     setIsMounted(true);
   }, []);
 
-  // Fetch daftar genre
   useEffect(() => {
     let cancelled = false;
     async function fetchGenreList() {
@@ -382,7 +381,6 @@ export default function GenrePage() {
     fetchGenre(1, true);
   }, [genre, fetchGenre]);
 
-  // ── INFINITE SCROLL OBSERVER (FIXED) ──
   const loadMore = useCallback(() => {
     if (!loading && hasMore && !isFetchingRef.current) {
       const next = page + 1;
@@ -407,7 +405,6 @@ export default function GenrePage() {
     return () => observer.disconnect();
   }, [observerTarget, hasMore, loadMore]);
 
-  // ── Sort ──
   const sorted = useMemo(() => {
     if (sortBy === "latest") return items;
     const copy = [...items];
@@ -614,7 +611,6 @@ export default function GenrePage() {
               )}
             </div>
 
-            {/* ── INFINITE SCROLL TARGET (FIXED) ── */}
             {hasMore && (
               <div
                 ref={setObserverTarget}
