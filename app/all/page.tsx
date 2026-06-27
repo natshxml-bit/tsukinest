@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, memo } from "react";
+import { useState, useEffect, useRef, useCallback, memo, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { SlidersHorizontal, X, Loader2, ImageIcon, Star, Clock } from "lucide-react";
 import { useAccent } from "@/lib/accent";
 
@@ -103,9 +104,9 @@ class RateLimiter {
   }
 }
 
-const kitsuLimiter = new RateLimiter(10, 100);   // 100 req/10s
-const jikanLimiter = new RateLimiter(2, 400);    // 3 req/s
-const anilistLimiter = new RateLimiter(2, 1000); // 90 req/menit
+const kitsuLimiter = new RateLimiter(10, 100);
+const jikanLimiter = new RateLimiter(2, 400);
+const anilistLimiter = new RateLimiter(2, 1000);
 
 /* ─── Cache ─── */
 function getCache(key: string): Record<string, string> {
@@ -143,14 +144,11 @@ function sanitizeTitle(title: string): string {
 
 function sanitizeForJikan(title: string): string {
   let t = sanitizeTitle(title);
-  // Jikan sensitive ke special chars & panjang
   t = t.replace(/[^\w\s\-]/g, " ").replace(/\s+/g, " ").trim();
   return t.substring(0, 50).trim();
 }
 
 /* ─── API Fetchers ─── */
-
-// Tier 2: Kitsu (100 req/10s, CORS open)
 async function fetchKitsu(title: string): Promise<string | null> {
   const cleanTitle = sanitizeTitle(title);
   if (!cleanTitle) return null;
@@ -172,7 +170,6 @@ async function fetchKitsu(title: string): Promise<string | null> {
   });
 }
 
-// Tier 3: Jikan (3 req/s, CORS open)
 async function fetchJikan(title: string): Promise<string | null> {
   const cleanTitle = sanitizeForJikan(title);
   if (!cleanTitle) return null;
@@ -193,7 +190,6 @@ async function fetchJikan(title: string): Promise<string | null> {
   });
 }
 
-// Tier 4: AniList (90 req/menit, CORS strict)
 async function fetchAniList(title: string): Promise<string | null> {
   const cleanTitle = sanitizeTitle(title);
   if (!cleanTitle) return null;
@@ -247,7 +243,6 @@ const SmartImage = memo(function SmartImage({
     fetchingRef.current = true;
 
     try {
-      // Tier 2: Kitsu (rate limit tinggi, CORS open)
       if (fallbackTier === "original" || fallbackTier === "kitsu") {
         setFallbackTier("kitsu");
         const kitsuImg = await fetchKitsu(title);
@@ -258,7 +253,6 @@ const SmartImage = memo(function SmartImage({
         }
       }
 
-      // Tier 3: Jikan
       if (fallbackTier !== "jikan" && fallbackTier !== "anilist" && fallbackTier !== "failed") {
         setFallbackTier("jikan");
         const jikanImg = await fetchJikan(title);
@@ -269,7 +263,6 @@ const SmartImage = memo(function SmartImage({
         }
       }
 
-      // Tier 4: AniList (last resort, CORS strict)
       if (fallbackTier !== "failed") {
         setFallbackTier("anilist");
         const anilistImg = await fetchAniList(title);
@@ -392,29 +385,72 @@ function SkeletonCard() {
   );
 }
 
-export default function AllSeriesPage() {
+// ─── KOMPONEN UTAMA DENGAN URL PARAMS SUPPORT ───
+function AllSeriesContent() {
   const { accent, style: accentStyle } = useAccent();
+  const searchParams = useSearchParams(); // ✅ BACA URL PARAMS
 
-  const [mangaList, setMangaList] = useState<MangaItem[]>(globalList);
-  const [page, setPage] = useState(globalPage);
-  const [isLoading, setIsLoading] = useState(globalList.length === 0);
+  const [mangaList, setMangaList] = useState<MangaItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
   const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
-  const [selectedGenre, setSelectedGenre] = useState(globalFilters.genre);
-  const [selectedType, setSelectedType] = useState(globalFilters.type);
-  const [selectedStatus, setSelectedStatus] = useState(globalFilters.status);
-  const [selectedOrder, setSelectedOrder] = useState(globalFilters.order);
+  // ✅ INISIALISASI DARI URL PARAMS ATAU GLOBAL CACHE
+  const [selectedGenre, setSelectedGenre] = useState("");
+  const [selectedType, setSelectedType] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [selectedOrder, setSelectedOrder] = useState("popular");
 
   const [showFilters, setShowFilters] = useState(false);
-  const [tempGenre, setTempGenre] = useState(globalFilters.genre);
-  const [tempType, setTempType] = useState(globalFilters.type);
-  const [tempStatus, setTempStatus] = useState(globalFilters.status);
-  const [tempOrder, setTempOrder] = useState(globalFilters.order);
+  const [tempGenre, setTempGenre] = useState("");
+  const [tempType, setTempType] = useState("");
+  const [tempStatus, setTempStatus] = useState("");
+  const [tempOrder, setTempOrder] = useState("popular");
 
   const [genres, setGenres] = useState<{ id: string; name: string }[]>([]);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const lastFetchedPageRef = useRef(0);
+
+  // ✅ EFFECT UNTUK BACA URL PARAMS SAAT PERTAMA LOAD
+  useEffect(() => {
+    if (hasInitialized) return;
+
+    const urlGenre = searchParams.get("genre") || "";
+    const urlType = searchParams.get("type") || "";
+    const urlStatus = searchParams.get("status") || "";
+    const urlOrder = searchParams.get("order") || "popular";
+
+    // Cek apakah ada cache global yang valid
+    const isGlobalCacheValid =
+      globalList.length > 0 &&
+      globalFilters.genre === urlGenre &&
+      globalFilters.type === urlType &&
+      globalFilters.status === urlStatus &&
+      globalFilters.order === urlOrder;
+
+    if (isGlobalCacheValid) {
+      // Pake cache global
+      setMangaList(globalList);
+      setPage(globalPage);
+      setIsLoading(false);
+      lastFetchedPageRef.current = globalPage;
+    } else {
+      // Apply filter dari URL
+      setSelectedGenre(urlGenre);
+      setSelectedType(urlType);
+      setSelectedStatus(urlStatus);
+      setSelectedOrder(urlOrder);
+      
+      setTempGenre(urlGenre);
+      setTempType(urlType);
+      setTempStatus(urlStatus);
+      setTempOrder(urlOrder);
+    }
+
+    setHasInitialized(true);
+  }, [searchParams, hasInitialized]);
 
   const transformItem = useCallback((item: any): MangaItem => {
     const formatType =
@@ -549,7 +585,10 @@ export default function AllSeriesPage() {
     [selectedGenre, selectedType, selectedStatus, selectedOrder, transformItem]
   );
 
+  // ✅ FETCH SAAT FILTER BERUBAH (setelah initialized)
   useEffect(() => {
+    if (!hasInitialized) return;
+
     const isCacheValid =
       globalFilters.genre === selectedGenre &&
       globalFilters.type === selectedType &&
@@ -569,7 +608,7 @@ export default function AllSeriesPage() {
     globalPage = 1;
     lastFetchedPageRef.current = 0;
     fetchManga(1, true);
-  }, [selectedGenre, selectedType, selectedStatus, selectedOrder, fetchManga]);
+  }, [selectedGenre, selectedType, selectedStatus, selectedOrder, fetchManga, hasInitialized]);
 
   useEffect(() => {
     if (page === 1) return;
@@ -578,11 +617,11 @@ export default function AllSeriesPage() {
   }, [page, fetchManga]);
 
   useEffect(() => {
-    if (globalList.length > 0 && globalScroll > 0) {
+    if (mangaList.length > 0 && globalScroll > 0) {
       const timer = setTimeout(() => window.scrollTo(0, globalScroll), 100);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [mangaList.length]);
 
   const handleSaveScroll = () => {
     globalScroll = window.scrollY;
@@ -801,5 +840,27 @@ export default function AllSeriesPage() {
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
       `}</style>
     </div>
+  );
+}
+
+// ✅ WRAP DENGAN SUSPENSE (wajib buat useSearchParams di Next.js)
+export default function AllSeriesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0a0a0a] text-white">
+        <div className="sticky top-0 z-40 bg-[#0a0a0a]/90 backdrop-blur-sm border-b border-white/[0.05] px-4 py-3">
+          <h1 className="text-xl font-bold tracking-tight">All Series</h1>
+        </div>
+        <div className="px-4 pt-4">
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
+            {Array.from({ length: 9 }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        </div>
+      </div>
+    }>
+      <AllSeriesContent />
+    </Suspense>
   );
 }
