@@ -29,24 +29,24 @@ import { cn } from "@/utils/cn";
 import { cleanThumb } from "@/utils/image";
 
 function transformItem(item: Record<string, unknown>): MangaItem {
-  const badgesArr = Array.isArray(item.badges) ? (item.badges as string[]) : [];
+  const badgesArr = Array.isArray(item?.badges) ? (item.badges as string[]) : [];
   return {
-    title: typeof item.title === "string" ? item.title : "Untitled",
-    slug: typeof item.slug === "string" ? item.slug : "",
-    thumb: cleanThumb(typeof item.thumb === "string" ? item.thumb : ""),
-    type: typeof item.type === "string" ? item.type.split(/\s+/)[0] : "MANHWA",
+    title: typeof item?.title === "string" ? item.title : "Untitled",
+    slug: typeof item?.slug === "string" ? item.slug : "",
+    thumb: cleanThumb(typeof item?.thumb === "string" ? item.thumb : ""),
+    type: typeof item?.type === "string" ? item.type.split(/\s+/)[0] : "MANHWA",
     latest_chapter:
-      typeof item.chapter === "string"
+      typeof item?.chapter === "string"
         ? item.chapter
-        : typeof item.latest_chapter === "string"
+        : typeof item?.latest_chapter === "string"
           ? item.latest_chapter
           : "Ch. ?",
-    rating: item.rating ? String(item.rating) : "0",
-    link: typeof item.link === "string" ? item.link : "",
+    rating: item?.rating ? String(item.rating) : "0",
+    link: typeof item?.link === "string" ? item.link : "",
     is_colored: badgesArr.includes("color"),
     is_hot: badgesArr.includes("hot"),
-    synopsis: typeof item.synopsis === "string" ? item.synopsis : "",
-    genres: Array.isArray(item.genres) ? (item.genres as string[]) : [],
+    synopsis: typeof item?.synopsis === "string" ? item.synopsis : "",
+    genres: Array.isArray(item?.genres) ? (item.genres as string[]) : [],
   };
 }
 
@@ -185,7 +185,7 @@ function EmptyState({ genre, accentStyle }: { genre: string; accentStyle: { text
   );
 }
 
-function GenreErrorState({ onRetry, accentStyle }: { onRetry: () => void; accentStyle: { bg: string; glow: string } }) {
+function GenreErrorState({ onRetry, accentStyle }: { onRetry: () => void; accentStyle: { bg: string; glow?: string } }) {
   return (
     <div className="flex flex-col items-center justify-center py-14 px-4 text-center">
       <div className="w-16 h-16 rounded-2xl bg-rose-500/10 flex items-center justify-center mb-4 ring-1 ring-rose-500/20">
@@ -204,7 +204,7 @@ function GenreErrorState({ onRetry, accentStyle }: { onRetry: () => void; accent
 }
 
 export default function GenrePage() {
-  const { accent, style: accentStyle } = useAccent();
+  const { style: accentStyle } = useAccent();
   const params = useParams();
   const router = useRouter();
   const genre = (params?.genre as string) || "";
@@ -245,8 +245,19 @@ export default function GenrePage() {
     setError(false);
     try {
       const res = await getGenre(genre, pageNum);
-      const data = Array.isArray(res?.data) ? (res.data as Record<string, unknown>[]) : Array.isArray((res?.data as Record<string, unknown>)?.results) ? ((res?.data as Record<string, unknown[]>).results as Record<string, unknown>[]) : [];
-      const transformed = data.map(transformItem);
+      
+      // FIX: Clean and robust data extraction bypassing TS Overlapping Type Error
+      let rawArray: any[] = [];
+      if (res?.data) {
+        if (Array.isArray(res.data)) {
+          rawArray = res.data;
+        } else if (Array.isArray((res.data as any).results)) {
+          rawArray = (res.data as any).results;
+        }
+      }
+
+      const transformed = rawArray.map((item) => transformItem(item as Record<string, unknown>));
+      
       if (reset) {
         setItems(transformed);
       } else {
@@ -257,9 +268,13 @@ export default function GenrePage() {
           return merged;
         });
       }
-      const pagination = (res as unknown as { pagination?: { total_pages: number } })?.pagination;
-      if (pagination?.total_pages) setHasMore(pageNum < pagination.total_pages);
-      else setHasMore(data.length > 0);
+      
+      const pagination = (res as any)?.pagination;
+      if (pagination?.total_pages) {
+        setHasMore(pageNum < pagination.total_pages);
+      } else {
+        setHasMore(rawArray.length > 0);
+      }
     } catch {
       setError(true);
     } finally {
@@ -302,7 +317,7 @@ export default function GenrePage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 pb-24 selection:bg-white/10">
-      <GenreHeader genre={formattedGenre} onBack={() => router.back()} accentStyle={accentStyle} />
+      <GenreHeader genre={formattedGenre} onBack={() => router.back()} accentStyle={accentStyle as any} />
 
       <main className="max-w-md mx-auto px-4 pt-20 space-y-6">
         <div className="flex items-center gap-2.5">
@@ -312,7 +327,7 @@ export default function GenrePage() {
               className="flex items-center justify-between w-full h-11 px-4 rounded-xl bg-white/[0.02] border border-white/[0.06] text-sm text-slate-300 hover:bg-white/[0.04] active:scale-95 transition-transform"
             >
               <span className="flex items-center gap-2">
-                <Grid3X3 className={cn("w-4 h-4", accentStyle.text)} />
+                <Grid3X3 className={cn("w-4 h-4", (accentStyle as any).text)} />
                 <span className="text-slate-500">Genre:</span>
                 <span className="font-bold text-white truncate max-w-[100px]">{formattedGenre}</span>
               </span>
@@ -328,7 +343,7 @@ export default function GenrePage() {
                         <button
                           key={g.slug}
                           onClick={() => { setShowGenreDropdown(false); router.push(`/genre/${g.slug}`); }}
-                          className={cn("text-left px-3 py-2.5 text-xs rounded-lg transition-colors", genre === g.slug ? cn(accentStyle.soft, accentStyle.text, "font-bold border", accentStyle.border) : "text-slate-400 hover:text-white hover:bg-white/[0.04]")}
+                          className={cn("text-left px-3 py-2.5 text-xs rounded-lg transition-colors", genre === g.slug ? cn((accentStyle as any).soft, (accentStyle as any).text, "font-bold border", (accentStyle as any).border) : "text-slate-400 hover:text-white hover:bg-white/[0.04]")}
                         >
                           {g.name}
                         </button>
@@ -345,7 +360,7 @@ export default function GenrePage() {
           <div className="relative">
             <button
               onClick={() => setShowSort((v) => !v)}
-              className={cn("w-11 h-11 flex items-center justify-center rounded-xl border transition-all active:scale-90", showSort ? cn(accentStyle.bg, "border-transparent text-white") : "bg-white/[0.02] border-white/[0.06] text-slate-400 hover:text-white")}
+              className={cn("w-11 h-11 flex items-center justify-center rounded-xl border transition-all active:scale-90", showSort ? cn((accentStyle as any).bg, "border-transparent text-white") : "bg-white/[0.02] border-white/[0.06] text-slate-400 hover:text-white")}
             >
               <SlidersHorizontal className="w-4 h-4" />
             </button>
@@ -357,7 +372,7 @@ export default function GenrePage() {
                     <button
                       key={opt.key}
                       onClick={() => { setSortBy(opt.key); setShowSort(false); }}
-                      className={cn("w-full text-left px-4 py-2.5 text-sm transition-colors", sortBy === opt.key ? cn(accentStyle.soft, accentStyle.text, "font-medium") : "text-slate-400 hover:text-white hover:bg-white/[0.04]")}
+                      className={cn("w-full text-left px-4 py-2.5 text-sm transition-colors", sortBy === opt.key ? cn((accentStyle as any).soft, (accentStyle as any).text, "font-medium") : "text-slate-400 hover:text-white hover:bg-white/[0.04]")}
                     >
                       {opt.label}
                     </button>
@@ -368,15 +383,15 @@ export default function GenrePage() {
           </div>
 
           <div className="flex items-center gap-1 bg-white/[0.02] rounded-xl p-0.5 border border-white/[0.06]">
-            <button onClick={() => setViewMode("grid")} className={cn("p-2 rounded-lg transition-all active:scale-90", viewMode === "grid" ? cn(accentStyle.bg, "text-white") : "text-slate-500 hover:text-slate-300")}><Grid3X3 className="w-4 h-4" /></button>
-            <button onClick={() => setViewMode("list")} className={cn("p-2 rounded-lg transition-all active:scale-90", viewMode === "list" ? cn(accentStyle.bg, "text-white") : "text-slate-500 hover:text-slate-300")}><LayoutList className="w-4 h-4" /></button>
+            <button onClick={() => setViewMode("grid")} className={cn("p-2 rounded-lg transition-all active:scale-90", viewMode === "grid" ? cn((accentStyle as any).bg, "text-white") : "text-slate-500 hover:text-slate-300")}><Grid3X3 className="w-4 h-4" /></button>
+            <button onClick={() => setViewMode("list")} className={cn("p-2 rounded-lg transition-all active:scale-90", viewMode === "list" ? cn((accentStyle as any).bg, "text-white") : "text-slate-500 hover:text-slate-300")}><LayoutList className="w-4 h-4" /></button>
           </div>
         </div>
 
         {!loading && !error && items.length > 0 && (
           <div className="flex items-center justify-between">
             <p className="text-xs text-slate-500">{items.length} hasil</p>
-            <button onClick={() => setShowSort(true)} className={cn("flex items-center gap-1 text-xs transition-colors", accentStyle.text)}>
+            <button onClick={() => setShowSort(true)} className={cn("flex items-center gap-1 text-xs transition-colors", (accentStyle as any).text)}>
               {sortBy === "latest" && "Terbaru"}{sortBy === "popular" && "Populer"}{sortBy === "rating" && "Rating"}
               <ChevronDown className="w-3 h-3" />
             </button>
@@ -384,23 +399,23 @@ export default function GenrePage() {
         )}
 
         {error && !loading ? (
-          <GenreErrorState onRetry={() => fetchGenre(1, true)} accentStyle={accentStyle} />
+          <GenreErrorState onRetry={() => fetchGenre(1, true)} accentStyle={accentStyle as any} />
         ) : loading && items.length === 0 ? (
           <div className={cn("gap-3", viewMode === "grid" ? "grid grid-cols-2" : "space-y-4")}>
             {Array.from({ length: 6 }).map((_, i) => viewMode === "grid" ? <SkeletonCard key={i} /> : <SkeletonList key={i} />)}
           </div>
         ) : sorted.length === 0 ? (
-          <EmptyState genre={formattedGenre} accentStyle={accentStyle} />
+          <EmptyState genre={formattedGenre} accentStyle={accentStyle as any} />
         ) : (
           <>
             <div className={cn("gap-3", viewMode === "grid" ? "grid grid-cols-2" : "space-y-1")}>
-              {sorted.map((item) => viewMode === "grid" ? <MangaCard key={item.slug} item={item} accentStyle={accentStyle} /> : <ListCard key={item.slug} item={item} accentStyle={accentStyle} />)}
+              {sorted.map((item) => viewMode === "grid" ? <MangaCard key={item.slug} item={item} accentStyle={accentStyle as any} /> : <ListCard key={item.slug} item={item} accentStyle={accentStyle as any} />)}
             </div>
             {hasMore && (
               <div ref={setObserverTarget} className="flex justify-center pt-8 pb-4">
                 {loading && (
                   <div className="flex items-center gap-3 px-5 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                    <div className={cn("w-4 h-4 border-2 border-white/10 rounded-full animate-spin", accentStyle.border.replace("border-", "border-t-"))} />
+                    <div className={cn("w-4 h-4 border-2 border-white/10 rounded-full animate-spin", (accentStyle as any).border?.replace("border-", "border-t-"))} />
                     <span className="text-xs font-medium text-slate-400">Memuat data...</span>
                   </div>
                 )}
