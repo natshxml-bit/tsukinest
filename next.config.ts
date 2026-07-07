@@ -3,7 +3,7 @@ import withPWAInit from "@ducanh2912/next-pwa";
 
 const withPWA = withPWAInit({
   dest: "public",
-  disable: process.env.NODE_ENV === "development",
+  disable: process.env.TERMUX_BUILD === "true",
   register: true,
   reloadOnOnline: true,
 });
@@ -44,10 +44,14 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
 
-  // TEST TERMUX BUILD
+  // Termux build fix
   webpack(config, { dev }) {
     if (!dev) {
+      // matikan terser/minify yang crash di Termux
       config.optimization.minimize = false;
+
+      // matikan cache webpack
+      config.cache = false;
     }
 
     return config;

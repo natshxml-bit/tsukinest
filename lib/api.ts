@@ -230,3 +230,5 @@ export function clearCacheLocal(): { success: boolean; message: string } {
     return { success: false, message: "Gagal membersihkan cache" };
   }
 }
+
+export const clearCache = clearCacheLocal;
