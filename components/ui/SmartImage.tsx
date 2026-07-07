@@ -166,7 +166,7 @@ const SmartImage = memo(function SmartImage(props: SmartImageProps) {
         loaded ? "opacity-100" : "opacity-0",
         className
       )}
-      {...(priority ? { fetchPriority: "high" as React.HTMLAttributes<HTMLImageElement>["fetchPriority"] } : {})}
+      {...(priority ? ({ fetchPriority: "high" } as any) : {})}
       {...cleanedImgProps}
     />
   );
