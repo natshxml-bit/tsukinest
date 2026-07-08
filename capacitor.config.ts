@@ -9,9 +9,10 @@ const config: CapacitorConfig = {
     cleartext: false
   },
   plugins: {
-    FirebaseAuthentication: {
-      skipNativeAuth: false,
-      providers: ["google.com"],
+    GoogleAuth: {
+      scopes: ['profile', 'email'],
+      serverClientId: '620991996534-6kfqvrrtpfq80ncj21un29bg0uphm40t.apps.googleusercontent.com',
+      forceCodeForRefreshToken: true,
     }
   }
 };
