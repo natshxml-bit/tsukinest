@@ -43,9 +43,6 @@ jobs:
           mkdir -p ~/.android
           echo '${{ secrets.DEBUG_KEYSTORE_BASE64 }}' | base64 -d > ~/.android/debug.keystore
 
-      - name: Restore google-services.json
-        run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
-
       - name: Build APK
         run: |
           cd android
