@@ -38,10 +38,10 @@ jobs:
             npx cap sync android
           fi
 
-      - name: Restore debug keystore
+      - name: Print debug keystore SHA-1
         run: |
-          mkdir -p ~/.android
-          echo '${{ secrets.DEBUG_KEYSTORE_BASE64 }}' | base64 -d > ~/.android/debug.keystore
+          cd android
+          ./gradlew signingReport | grep -A 3 "Variant: debug" | grep "SHA1"
 
       - name: Build APK
         run: |
