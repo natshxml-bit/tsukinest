@@ -7,9 +7,9 @@ import {
   useRef,
   memo,
 } from "react";
-import { auth, googleProvider, db } from "@/lib/firebase"; 
+// UPDATE: Import signInWithGoogle dari lib/firebase
+import { auth, db, signInWithGoogle } from "@/lib/firebase"; 
 import {
-  signInWithPopup,
   signOut,
   onAuthStateChanged,
   updateProfile,
@@ -243,12 +243,22 @@ export default function ProfilePage() {
     fetchHistoryFromFirebase();
   }, [user]);
 
+  // UPDATE: Fungsi Login pakai signInWithGoogle buatan lu
   const handleGoogleLogin = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
-      triggerToast("Selamat datang kembali!", "success");
+      const loggedInUser = await signInWithGoogle();
+      if (loggedInUser) {
+        triggerToast("Selamat datang kembali!", "success");
+      }
     } catch (error: any) {
-      if (error.code !== "auth/popup-closed-by-user") triggerToast("Gagal masuk dengan Google.", "error");
+      console.error("Login Google Error:", error);
+      if (
+        error.code !== "auth/popup-closed-by-user" &&
+        error.message !== "12501: " && // Kode cancel native Android
+        !error.message?.includes("canceled")
+      ) {
+        triggerToast("Gagal masuk dengan Google.", "error");
+      }
     }
   };
 
