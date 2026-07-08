@@ -1,7 +1,13 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  signInWithCredential, 
+  signInWithPopup 
+} from "firebase/auth";
 import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
+import { Capacitor } from "@capacitor/core";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -13,30 +19,42 @@ const firebaseConfig = {
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
-const auth = getAuth(app);
-const googleProvider = new GoogleAuthProvider();
+export const db = getFirestore(app);
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
 
-// Function buat Google Sign-In yang support Capacitor
+// FUNGSI UTAMA: Support Native Capacitor & Web
 export const signInWithGoogle = async () => {
-  // Check if running in Capacitor
-  const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
-  
+  const isCapacitor = Capacitor.isNativePlatform();
+
   if (isCapacitor) {
-    // Pakai native Google Sign-In untuk Capacitor
     try {
+      // 1. Munculkan Native Popup Android (Ga buka Chrome!)
       const result = await FirebaseAuthentication.signInWithGoogle();
-      return result.user;
+      
+      // 2. Ambil token dari hasil login native
+      const idToken = result.credential?.idToken;
+      if (!idToken) throw new Error("ID Token tidak ditemukan dari native provider");
+
+      // 3. PENTING: Setor token ke Firebase SDK biar UI aplikasi lu update statusnya
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCredential = await signInWithCredential(auth, credential);
+      
+      return userCredential.user;
     } catch (error) {
-      console.error("Google sign in error:", error);
+      console.error("Native Google Sign-In Error:", error);
       throw error;
     }
   } else {
-    // Pakai Firebase Auth biasa untuk web
-    const { signInWithPopup } = await import("firebase/auth");
-    const result = await signInWithPopup(auth, googleProvider);
-    return result.user;
+    // 4. Fallback ke Web SDK (tetap buka popup Chrome kalau di PC)
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      return result.user;
+    } catch (error) {
+      console.error("Web Google Sign-In Error:", error);
+      throw error;
+    }
   }
 };
 
-export { app, db, auth, googleProvider };
+export { app };
