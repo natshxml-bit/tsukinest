@@ -8,6 +8,7 @@ import Navbar from "@/components/layout/Navbar";
 import FooterWrapper from "@/components/layout/FooterWrapper";
 import { Toaster } from "react-hot-toast";
 import { AppProvider } from "@/providers/AppProvider";
+import BackButtonHandler from "@/components/BackButtonHandler";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -49,16 +50,13 @@ export const metadata: Metadata = {
   creator: "TsukiNest",
   publisher: "TsukiNest",
 
-  // Next.js otomatis inject <link rel="manifest" ... />
   manifest: "/manifest.json",
 
-  // Next.js otomatis inject ikon ini ke <head>
   icons: {
     icon: "/favicon.ico",
     apple: "/apple-touch-icon.png",
   },
 
-  // Next.js otomatis inject tag apple-mobile-web-app-*
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -106,7 +104,6 @@ export const metadata: Metadata = {
 
   category: "entertainment",
 
-  // Next.js otomatis inject <meta name="google-site-verification" ... />
   verification: {
     google: "tgMxzJ5YEIOEHIEK_BtXsx_R6W99nM0zljfxszvBh5w",
   },
@@ -119,20 +116,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" className={`${inter.variable}`}>
-      {/* 
-        body diberi flex dan items-center 
-        agar container utama selalu di tengah layar jika dibuka di desktop/landscape 
-      */}
       <body
         className={`${inter.className} bg-zinc-950 text-white antialiased flex flex-col min-h-screen items-center`}
       >
-        {/* 
-          WRAPPER UTAMA (PENGUNCI PORTRAIT)
-          Maksimal lebar di-set ke ukuran HP (max-w-md), jika layar membesar, 
-          UI tetap seukuran HP dan tidak melar.
-        */}
         <AppProvider>
           <div className="w-full max-w-md min-h-screen bg-black relative shadow-2xl flex flex-col overflow-x-hidden border-x border-zinc-900">
+            
+            {/* Back Button Handler untuk Capacitor Android */}
+            <BackButtonHandler />
             
             {/* Toast System */}
             <Toaster
