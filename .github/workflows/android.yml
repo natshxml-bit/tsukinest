@@ -41,7 +41,7 @@ jobs:
       - name: Print debug keystore SHA-1
         run: |
           cd android
-          ./gradlew signingReport | grep -A 3 "Variant: debug" | grep "SHA1"
+          ./gradlew signingReport || true
 
       - name: Build APK
         run: |
