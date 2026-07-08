@@ -1,5 +1,4 @@
 name: Build TsukiNest APK
-
 on:
   workflow_dispatch:
   push:
@@ -9,7 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,14 +21,30 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Sync Capacitor
-        run: npx cap sync android
-
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Add Android platform (if not present)
+        run: |
+          if [ ! -d "android" ]; then
+            npx cap add android
+          else
+            npx cap sync android
+          fi
+
+      - name: Restore debug keystore
+        run: |
+          mkdir -p ~/.android
+          echo '${{ secrets.DEBUG_KEYSTORE_BASE64 }}' | base64 -d > ~/.android/debug.keystore
+
+      - name: Restore google-services.json
+        run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
 
       - name: Build APK
         run: |
