@@ -4,4 +4,7 @@
     <string name="title_activity_main">TsukiNest</string>
     <string name="package_name">com.tsukinest.app</string>
     <string name="custom_url_scheme">com.tsukinest.app</string>
+    
+    <!-- Tambahkan baris di bawah ini -->
+    <string name="server_client_id">620991996534-6kfqvrrtpfq80ncj21un29bg0uphm40t.apps.googleusercontent.com</string>
 </resources>
