@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "620991996534",
+    "project_id": "tsukinest",
+    "storage_bucket": "tsukinest.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:620991996534:android:764aab6ec4bb9fcaf93557",
+        "android_client_info": {
+          "package_name": "com.tsukinest.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "620991996534-6kfqvrrtpfq80ncj21un29bg0uphm40t.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKdmC4I_oBbN13xKkNQowGQ3fHPeVwz3k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "620991996534-6kfqvrrtpfq80ncj21un29bg0uphm40t.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:620991996534:android:db3bb9115b78c349f93557",
+        "android_client_info": {
+          "package_name": "com.tsukinest.com"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "620991996534-6kfqvrrtpfq80ncj21un29bg0uphm40t.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKdmC4I_oBbN13xKkNQowGQ3fHPeVwz3k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "620991996534-6kfqvrrtpfq80ncj21un29bg0uphm40t.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
