@@ -14,34 +14,13 @@
       },
       "oauth_client": [
         {
-          "client_id": "620991996534-6kfqvrrtpfq80ncj21un29bg0uphm40t.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyCKdmC4I_oBbN13xKkNQowGQ3fHPeVwz3k"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "620991996534-6kfqvrrtpfq80ncj21un29bg0uphm40t.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:620991996534:android:db3bb9115b78c349f93557",
-        "android_client_info": {
-          "package_name": "com.tsukinest.com"
-        }
-      },
-      "oauth_client": [
+          "client_id": "620991996534-l350tpo4ldcq5b7a6s4s39g89udttq4j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tsukinest.app",
+            "certificate_hash": "3d962b3bea0bb116e21383600cf0d29b3455e354"
+          }
+        },
         {
           "client_id": "620991996534-6kfqvrrtpfq80ncj21un29bg0uphm40t.apps.googleusercontent.com",
           "client_type": 3
