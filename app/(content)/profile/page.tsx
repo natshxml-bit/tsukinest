@@ -7,7 +7,7 @@ import {
   useRef,
   memo,
 } from "react";
-// UPDATE: Import signInWithGoogle dari lib/firebase
+// Import signInWithGoogle dari lib/firebase lo yang baru
 import { auth, db, signInWithGoogle } from "@/lib/firebase"; 
 import {
   signOut,
@@ -791,30 +791,28 @@ export default function ProfilePage() {
           </p>
 
           {/* ═══════════════════════════════════════════════
-              TULISAN "ATAU" & TOMBOL GOOGLE HANYA MUNCUL DI WEB, BUKAN DI APK
+              TOMBOL GOOGLE SEKARANG MUNCUL DI WEB DAN APK 🚀
               ═══════════════════════════════════════════════ */}
-          {!Capacitor.isNativePlatform() && (
-            <>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="h-px flex-1 bg-white/[0.05]" />
-                <span className="text-[10px] text-neutral-600 font-bold tracking-widest uppercase">
-                  atau
-                </span>
-                <div className="h-px flex-1 bg-white/[0.05]" />
-              </div>
+          <>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-px flex-1 bg-white/[0.05]" />
+              <span className="text-[10px] text-neutral-600 font-bold tracking-widest uppercase">
+                atau
+              </span>
+              <div className="h-px flex-1 bg-white/[0.05]" />
+            </div>
 
-              <button
-                onClick={handleGoogleLogin}
-                className="w-full flex items-center justify-center gap-3 bg-white text-black font-bold py-3.5 rounded-2xl active:scale-[0.98] transition-all text-sm"
-              >
-                <IconGoogle />
-                Lanjutkan dengan Google
-              </button>
-            </>
-          )}
+            <button
+              onClick={handleGoogleLogin}
+              className="w-full flex items-center justify-center gap-3 bg-white text-black font-bold py-3.5 rounded-2xl active:scale-[0.98] transition-all text-sm"
+            >
+              <IconGoogle />
+              Lanjutkan dengan Google
+            </button>
+          </>
 
         </div>
-      )} {/* <-- INI YANG TADI KELUPAAN BANG: Penutup Ternary Operator */}
+      )}
 
       {/* IMAGE CROP MODAL */}
       {previewImage && (
