@@ -4,17 +4,24 @@ const config: CapacitorConfig = {
   appId: 'com.tsukinest.app',
   appName: 'TsukiNest',
   webDir: 'public',
+
   server: {
     url: 'https://tsukinest.my.id',
     cleartext: false
   },
-  // Karena Anda menggunakan plugin Firebase, 
-  // konfigurasi Firebase biasanya diatur secara otomatis 
-  // melalui file google-services.json di dalam folder android/app/
+
   plugins: {
     FirebaseAuthentication: {
       skipNativeAuth: false,
       providers: ["google.com"],
+    },
+
+    SplashScreen: {
+      launchAutoHide: false,
+      backgroundColor: "#000000",
+      showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: true,
     }
   }
 };
