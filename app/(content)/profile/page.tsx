@@ -793,25 +793,21 @@ export default function ProfilePage() {
           {/* ═══════════════════════════════════════════════
               TULISAN "ATAU" & TOMBOL GOOGLE HANYA MUNCUL DI WEB, BUKAN DI APK
               ═══════════════════════════════════════════════ */}
-          {!Capacitor.isNativePlatform() && (
-            <>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="h-px flex-1 bg-white/[0.05]" />
-                <span className="text-[10px] text-neutral-600 font-bold tracking-widest uppercase">atau</span>
-                <div className="h-px flex-1 bg-white/[0.05]" />
-              </div>
+<div className="flex items-center gap-3 mb-6">
+  <div className="h-px flex-1 bg-white/[0.05]" />
+  <span className="text-[10px] text-neutral-600 font-bold tracking-widest uppercase">
+    atau
+  </span>
+  <div className="h-px flex-1 bg-white/[0.05]" />
+</div>
 
-              <button
-                onClick={handleGoogleLogin}
-                className="w-full flex items-center justify-center gap-3 bg-white text-black font-bold py-3.5 rounded-2xl active:scale-[0.98] transition-all text-sm"
-              >
-                <IconGoogle />
-                Lanjutkan dengan Google
-              </button>
-            </>
-          )}
-        </div>
-      )}
+<button
+  onClick={handleGoogleLogin}
+  className="w-full flex items-center justify-center gap-3 bg-white text-black font-bold py-3.5 rounded-2xl active:scale-[0.98] transition-all text-sm"
+>
+  <IconGoogle />
+  Lanjutkan dengan Google
+</button>
 
       {/* ═══════════════════════════════════════════════
           IMAGE CROP MODAL
