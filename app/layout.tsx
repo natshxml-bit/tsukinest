@@ -9,6 +9,7 @@ import FooterWrapper from "@/components/layout/FooterWrapper";
 import { Toaster } from "react-hot-toast";
 import { AppProvider } from "@/providers/AppProvider";
 import BackButtonHandler from "@/components/BackButtonHandler";
+import SplashScreenHandler from "@/components/SplashScreenHandler";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -92,9 +93,9 @@ export const metadata: Metadata = {
     googleBot: {
       index: true,
       follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
+      maxVideoPreview: -1,
+      maxImagePreview: "large",
+      maxSnippet: -1,
     },
   },
 
@@ -121,10 +122,13 @@ export default function RootLayout({
       >
         <AppProvider>
           <div className="w-full max-w-md min-h-screen bg-black relative shadow-2xl flex flex-col overflow-x-hidden border-x border-zinc-900">
-            
-            {/* Back Button Handler untuk Capacitor Android */}
+
+            {/* Capacitor Android Back Button */}
             <BackButtonHandler />
-            
+
+            {/* Capacitor Android Splash Screen */}
+            <SplashScreenHandler />
+
             {/* Toast System */}
             <Toaster
               position="top-center"
@@ -142,7 +146,9 @@ export default function RootLayout({
             <Navbar />
 
             {/* Main Content */}
-            <main className="flex-grow">{children}</main>
+            <main className="flex-grow">
+              {children}
+            </main>
 
             {/* Footer */}
             <FooterWrapper />
@@ -152,7 +158,7 @@ export default function RootLayout({
 
             {/* PWA Install Popup */}
             <InstallPrompt />
-            
+
           </div>
         </AppProvider>
       </body>

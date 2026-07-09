@@ -5,11 +5,23 @@ import { SplashScreen } from "@capacitor/splash-screen";
 
 export default function SplashScreenHandler() {
   useEffect(() => {
-    const cap = (window as any).Capacitor;
+    const hideSplash = async () => {
+      try {
+        const cap = (window as any).Capacitor;
 
-    if (cap?.isNativePlatform()) {
-      SplashScreen.hide();
-    }
+        if (cap?.isNativePlatform()) {
+          await SplashScreen.hide();
+        }
+      } catch (error) {
+        console.log("Splash hide error:", error);
+      }
+    };
+
+    const timer = setTimeout(() => {
+      hideSplash();
+    }, 1000);
+
+    return () => clearTimeout(timer);
   }, []);
 
   return null;
