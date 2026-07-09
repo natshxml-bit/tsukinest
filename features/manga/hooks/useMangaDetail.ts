@@ -4,7 +4,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
+// 1. TAMBAHKAN arrayUnion di sini
+import { doc, getDoc, setDoc, deleteDoc, arrayUnion } from "firebase/firestore";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { fetchMangaDetail } from "@/features/manga/services/manga.service";
 import type {
@@ -63,7 +64,7 @@ export function useMangaDetail() {
     return onAuthStateChanged(auth, setUser);
   }, []);
 
-  /* ─── Load local preferences ─── */
+  /* ─── Load local preferences (Guest / Fallback) ─── */
   useEffect(() => {
     try {
       const stored = localStorage.getItem(READ_CHAPTERS_KEY);
@@ -78,6 +79,38 @@ export function useMangaDetail() {
       // ignore localStorage errors
     }
   }, []);
+
+  /* ─── NEW: Fetch History from Firebase Firestore ─── */
+  useEffect(() => {
+    if (!user || !slug) return;
+    const fetchHistory = async () => {
+      try {
+        const docRef = doc(db, "users", user.uid, "history", slug);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          const historyData = snap.data();
+          
+          // Gabungkan chapter dari Firebase & LocalStorage tanpa duplikat
+          if (historyData.read_chapters && Array.isArray(historyData.read_chapters)) {
+            setReadChapters((prev) => {
+              const merged = Array.from(new Set([...prev, ...historyData.read_chapters]));
+              try {
+                localStorage.setItem(READ_CHAPTERS_KEY, JSON.stringify(merged));
+              } catch {}
+              return merged;
+            });
+          }
+
+          if (historyData.last_read_chapter) {
+            setLastReadChapter(historyData.last_read_chapter);
+          }
+        }
+      } catch (err) {
+        console.error("Gagal mengambil history dari Firebase:", err);
+      }
+    };
+    fetchHistory();
+  }, [user, slug]);
 
   /* ─── Check bookmark ─── */
   useEffect(() => {
@@ -132,16 +165,42 @@ export function useMangaDetail() {
     }
   }, [activeTab, showAllChapters, lastReadChapter]);
 
-  /* ─── Actions ─── */
-  const markChapterAsRead = useCallback((chapterSlug: string) => {
+  /* ─── Actions (UPDATED with Firebase Sync) ─── */
+  const markChapterAsRead = useCallback(async (chapterSlug: string) => {
+    // 1. Update State & LocalStorage dulu biar UI langsung responsif (Optimistic UI)
     setReadChapters((prev) => {
       if (prev.includes(chapterSlug)) return prev;
       const updated = [...prev, chapterSlug];
-      localStorage.setItem(READ_CHAPTERS_KEY, JSON.stringify(updated));
-      setLastReadChapter(chapterSlug);
+      try {
+        localStorage.setItem(READ_CHAPTERS_KEY, JSON.stringify(updated));
+      } catch {}
       return updated;
     });
-  }, []);
+    setLastReadChapter(chapterSlug);
+
+    // 2. Kalau user login & data manga ada, simpan ke Firebase Firestore
+    if (user && data && slug) {
+      try {
+        const historyRef = doc(db, "users", user.uid, "history", slug);
+        await setDoc(
+          historyRef,
+          {
+            id: slug,
+            slug: slug,
+            title: data.title,
+            thumb: data.thumb,
+            type: data.type || "MANHWA",
+            read_chapters: arrayUnion(chapterSlug), // Otomatis nambah ke array di Firebase
+            last_read_chapter: chapterSlug,
+            updatedAt: Date.now(),
+          },
+          { merge: true } // Merge agar tidak menghapus field lain jika ada
+        );
+      } catch (err) {
+        console.error("Gagal menyimpan history ke Firebase:", err);
+      }
+    }
+  }, [user, data, slug]);
 
   const toggleBookmark = async () => {
     if (!user) {
