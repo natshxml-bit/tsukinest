@@ -21,7 +21,7 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
 } from "firebase/auth";
-import { collection, query, getDocs } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { Capacitor } from "@capacitor/core";
 import { clearCache } from "@/lib/api";
 import {
@@ -244,7 +244,6 @@ export default function ProfilePage() {
     fetchHistoryFromFirebase();
   }, [user]);
 
-  // UPDATE: Fungsi Login pakai signInWithGoogle buatan lu
   const handleGoogleLogin = async () => {
     try {
       const loggedInUser = await signInWithGoogle();
@@ -513,6 +512,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* ── CONDITIONAL RENDER: LOGGED IN VS LOGGED OUT ── */}
       {user ? (
         <div className="max-w-md mx-auto px-5 space-y-8 relative z-10">
           {/* ── AVATAR ── */}
@@ -793,25 +793,30 @@ export default function ProfilePage() {
           {/* ═══════════════════════════════════════════════
               TULISAN "ATAU" & TOMBOL GOOGLE HANYA MUNCUL DI WEB, BUKAN DI APK
               ═══════════════════════════════════════════════ */}
-<div className="flex items-center gap-3 mb-6">
-  <div className="h-px flex-1 bg-white/[0.05]" />
-  <span className="text-[10px] text-neutral-600 font-bold tracking-widest uppercase">
-    atau
-  </span>
-  <div className="h-px flex-1 bg-white/[0.05]" />
-</div>
+          {!Capacitor.isNativePlatform() && (
+            <>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="h-px flex-1 bg-white/[0.05]" />
+                <span className="text-[10px] text-neutral-600 font-bold tracking-widest uppercase">
+                  atau
+                </span>
+                <div className="h-px flex-1 bg-white/[0.05]" />
+              </div>
 
-<button
-  onClick={handleGoogleLogin}
-  className="w-full flex items-center justify-center gap-3 bg-white text-black font-bold py-3.5 rounded-2xl active:scale-[0.98] transition-all text-sm"
->
-  <IconGoogle />
-  Lanjutkan dengan Google
-</button>
+              <button
+                onClick={handleGoogleLogin}
+                className="w-full flex items-center justify-center gap-3 bg-white text-black font-bold py-3.5 rounded-2xl active:scale-[0.98] transition-all text-sm"
+              >
+                <IconGoogle />
+                Lanjutkan dengan Google
+              </button>
+            </>
+          )}
 
-      {/* ═══════════════════════════════════════════════
-          IMAGE CROP MODAL
-          ═══════════════════════════════════════════════ */}
+        </div>
+      )} {/* <-- INI YANG TADI KELUPAAN BANG: Penutup Ternary Operator */}
+
+      {/* IMAGE CROP MODAL */}
       {previewImage && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
           <div className="bg-[#141414] border border-white/[0.05] w-full max-w-sm rounded-3xl p-6 text-center">
@@ -1145,7 +1150,7 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <style jsx global>{`
+      <style>{`
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         @media (prefers-reduced-motion: reduce), (.reduce-motion) {
