@@ -7,7 +7,7 @@ export const SITE_CONFIG = {
   description:
     "Platform baca manhwa, manhua, dan manga bahasa Indonesia terlengkap dan terupdate setiap hari.",
   url: "https://tsukinest.my.id",
-  ogImage: "/og-image.jpg",
+  ogImage: "/og-image.png",
   locale: "id_ID",
   creator: "@tsukinest",
   /** Google Search Console verification token */
