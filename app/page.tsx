@@ -138,12 +138,32 @@ const CACHE_DURATION = 5 * 60 * 1000;
 function useOnlineStatus() {
   const [isOnline, setIsOnline] = useState(true);
   useEffect(() => {
-    setIsOnline(navigator.onLine);
-    const on = () => setIsOnline(true);
-    const off = () => setIsOnline(false);
+    // `navigator.onLine` sering keliru sesaat pas halaman baru di-refresh
+    // (koneksi lagi "dilepas-sambung ulang"), jadi jangan langsung dipercaya
+    // mentah-mentah -- tunda sebentar, baru tampilkan banner offline kalau
+    // statusnya beneran bertahan (bukan cuma kedipan sesaat).
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const applyStatus = (online: boolean) => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      if (online) {
+        // Balik online boleh langsung, gak perlu ditunda.
+        setIsOnline(true);
+      } else {
+        debounceTimer = setTimeout(() => setIsOnline(false), 1500);
+      }
+    };
+
+    applyStatus(navigator.onLine);
+    const on = () => applyStatus(true);
+    const off = () => applyStatus(false);
     window.addEventListener("online", on);
     window.addEventListener("offline", off);
-    return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
+    };
   }, []);
   return isOnline;
 }

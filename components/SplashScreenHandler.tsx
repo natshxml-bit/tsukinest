@@ -10,7 +10,12 @@ import { SplashScreen } from "@capacitor/splash-screen";
  * lalu baru menutup native splash biar transisinya mulus.
  */
 export default function SplashScreenHandler() {
-  const [visible, setVisible] = useState(true);
+  // Default-nya SELALU false (baik di server render maupun first paint client),
+  // biar di browser biasa overlay ini gak pernah sempet ke-render sama sekali.
+  // Sebelumnya default-nya `true` lalu di-set `false` di dalam useEffect -> itu
+  // yang bikin png-nya sempet "kelip" sebelum JS selesai hydrate, dan makin
+  // kelihatan lama kalau koneksi lagi lag (karena hydrate-nya jadi lebih lambat).
+  const [visible, setVisible] = useState(false);
   const [fading, setFading] = useState(false);
 
   useEffect(() => {
@@ -20,9 +25,11 @@ export default function SplashScreenHandler() {
     // Bukan app Android/iOS (dibuka lewat browser biasa) -> skip overlay ini,
     // biarin app.loading.tsx bawaan Next.js yang jalan.
     if (!isNative) {
-      setVisible(false);
       return;
     }
+
+    // Baru di sini overlay dinyalakan, dan ini cuma kejadian di app native.
+    setVisible(true);
 
     const hideNativeSplash = async () => {
       try {
