@@ -301,8 +301,18 @@ export default function LibraryPage() {
         setIsLoadingData(false);
       },
       (err) => {
-        console.error(err);
-        triggerToast("Gagal memuat data dari basis data.", "error");
+        // Log kode error asli dari Firestore (mis. "permission-denied",
+        // "unavailable", "cancelled") supaya gampang di-diagnosa lewat
+        // remote debugging (chrome://inspect), bukan cuma tau "gagal".
+        console.error("[Library] onSnapshot error:", err.code, err.message, err);
+
+        if (err.code === "permission-denied") {
+          triggerToast("Sesi login bermasalah. Coba logout lalu login lagi.", "error");
+        } else if (err.code === "unavailable") {
+          triggerToast("Koneksi terganggu. Memeriksa jaringan...", "error");
+        } else {
+          triggerToast("Gagal memuat data dari basis data.", "error");
+        }
         setIsLoadingData(false);
       }
     );

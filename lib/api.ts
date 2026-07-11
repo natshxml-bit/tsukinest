@@ -205,6 +205,18 @@ export async function getHealth(): Promise<Record<string, unknown> | null> {
   return fetcher<Record<string, unknown>>("/");
 }
 
+// Key yang WAJIB tetap ada walau namanya mengandung "cache"/"tsukinest"/"komiku",
+// karena isinya preferensi & riwayat baca user, bukan cache hasil fetch API.
+// (Hampir semua key di app ini diawali "tsukinest_", jadi filter substring lama
+// tanpa whitelist ini efektif menghapus HAMPIR SEMUA local storage, bukan cuma cache.)
+const PROTECTED_STORAGE_KEYS = new Set([
+  "tsukinest_recent_reads",   // riwayat baca terakhir (halaman home)
+  "tsukinest_read_chapters",  // penanda chapter yang sudah dibaca
+  "tsukinest_theme",          // mode baca (reading mode)
+  "tsukinest_color_scheme",   // tema warna aplikasi
+  "tsukinest_seen_notifs_v2", // notifikasi yang sudah dilihat
+]);
+
 export function clearCacheLocal(): { success: boolean; message: string } {
   try {
     if (typeof window !== "undefined") {
@@ -217,7 +229,7 @@ export function clearCacheLocal(): { success: boolean; message: string } {
             key.includes("tsukinest") ||
             key.includes("komiku")) &&
           !key.includes("firebase") &&
-          key !== "tsukinest_recent_reads"
+          !PROTECTED_STORAGE_KEYS.has(key)
         ) {
           keysToRemove.push(key);
         }
