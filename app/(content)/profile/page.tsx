@@ -7,6 +7,7 @@ import {
   useRef,
   memo,
 } from "react";
+import Link from "next/link";
 // Import signInWithGoogle dari lib/firebase lo yang baru
 import { auth, db, signInWithGoogle } from "@/lib/firebase"; 
 import {
@@ -21,7 +22,7 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
 } from "firebase/auth";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, doc, onSnapshot } from "firebase/firestore";
 import { Capacitor } from "@capacitor/core";
 import { clearCache } from "@/lib/api";
 import {
@@ -49,6 +50,7 @@ import {
   Zap,
   HardDrive,
   UserCog,
+  LayoutDashboard,
 } from "lucide-react";
 
 import Cropper from "react-easy-crop";
@@ -160,6 +162,7 @@ export default function ProfilePage() {
   const { accent, style: accentStyle, setAccent, customHex, setCustomHex } = useAccent();
 
   const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [localPhoto, setLocalPhoto] = useState<string | null>(null);
@@ -214,6 +217,19 @@ export default function ProfilePage() {
     });
     return () => unsub();
   }, []);
+
+  // Baca role user (admin/member) buat nampilin link Dashboard Admin
+  // kalau relevan. Dokumennya sendiri dibuat otomatis oleh <PresenceTracker />.
+  useEffect(() => {
+    if (!user) {
+      setRole(null);
+      return;
+    }
+    const unsub = onSnapshot(doc(db, "users", user.uid), (snap) => {
+      setRole((snap.data()?.role as string) ?? "member");
+    });
+    return () => unsub();
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
@@ -1010,6 +1026,18 @@ export default function ProfilePage() {
                   <UserCog className="w-3 h-3" /> Akun
                 </h4>
                 <div className="bg-[#1c1c1c] rounded-2xl border border-white/[0.05] divide-y divide-white/[0.05] overflow-hidden">
+                  {role === "admin" && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setIsSettingsOpen(false)}
+                      className="w-full flex items-center justify-between p-4 hover:bg-[#262626] transition-all text-left active:scale-[0.99]"
+                    >
+                      <span className="text-sm flex items-center gap-3 text-neutral-300">
+                        <LayoutDashboard className="w-4 h-4 text-neutral-500" /> Dashboard Admin
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-neutral-600" />
+                    </Link>
+                  )}
                   <button
                     onClick={() => { setIsSettingsOpen(false); handleEditName(); }}
                     className="w-full flex items-center justify-between p-4 hover:bg-[#262626] transition-all text-left active:scale-[0.99]"

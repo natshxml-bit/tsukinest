@@ -10,6 +10,7 @@ import { Toaster } from "react-hot-toast";
 import { AppProvider } from "@/providers/AppProvider";
 import BackButtonHandler from "@/components/BackButtonHandler";
 import SplashScreenHandler from "@/components/SplashScreenHandler";
+import PresenceTracker from "@/components/PresenceTracker";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -122,6 +123,9 @@ export default function RootLayout({
       >
         <AppProvider>
           <div className="w-full max-w-md min-h-screen bg-black relative shadow-2xl flex flex-col overflow-x-hidden border-x border-zinc-900">
+
+            {/* Sync data user + heartbeat online status (gak render apa-apa) */}
+            <PresenceTracker />
 
             {/* Capacitor Android Back Button */}
             <BackButtonHandler />
