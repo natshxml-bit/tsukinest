@@ -2,7 +2,7 @@
 // features/chapter/components/ChapterNavigation.tsx
 // Fixed bottom footer: progress bar + prev/next chapter + comments/settings buttons.
 
-import { ChevronLeft, ChevronRight, MessageCircle, Settings } from "lucide-react";
+import { ChevronLeft, ChevronRight, MessageCircle, Settings, RefreshCw } from "lucide-react";
 import { useAccent } from "@/lib/accent";
 
 interface ChapterNavigationProps {
@@ -15,6 +15,7 @@ interface ChapterNavigationProps {
   onNext: () => void;
   onOpenComments: () => void;
   onOpenSettings: () => void;
+  onRefresh: () => void;
 }
 
 export function ChapterNavigation({
@@ -27,6 +28,7 @@ export function ChapterNavigation({
   onNext,
   onOpenComments,
   onOpenSettings,
+  onRefresh,
 }: ChapterNavigationProps) {
   const { style: accentStyle } = useAccent();
 
@@ -54,10 +56,17 @@ export function ChapterNavigation({
             <ChevronLeft className="w-4 h-4" /> Sebelumnya
           </button>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 sm:gap-1">
+            <button
+              onClick={onRefresh}
+              className="p-2.5 sm:p-3 rounded-xl hover:bg-white/5 transition-colors text-gray-400 active:scale-95"
+              aria-label="Muat ulang chapter"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
             <button
               onClick={onOpenComments}
-              className="p-3 rounded-xl hover:bg-white/5 transition-colors text-gray-400 relative active:scale-95"
+              className="p-2.5 sm:p-3 rounded-xl hover:bg-white/5 transition-colors text-gray-400 relative active:scale-95"
             >
               <MessageCircle className="w-5 h-5" />
               {commentCount > 0 && (
@@ -68,7 +77,7 @@ export function ChapterNavigation({
             </button>
             <button
               onClick={onOpenSettings}
-              className="p-3 rounded-xl hover:bg-white/5 transition-colors text-gray-400 active:scale-95"
+              className="p-2.5 sm:p-3 rounded-xl hover:bg-white/5 transition-colors text-gray-400 active:scale-95"
             >
               <Settings className="w-5 h-5" />
             </button>

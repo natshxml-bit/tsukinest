@@ -397,6 +397,7 @@ export function ChapterReader() {
         onNext={() => reader.handleNavigation(data.next_chapter)}
         onOpenComments={() => { reader.setShowComments(true); reader.setShowUI(false); }}
         onOpenSettings={() => { reader.setShowSettings(true); reader.setShowUI(false); }}
+        onRefresh={reader.refreshChapter}
       />
 
       {/* Drawers / Overlays */}

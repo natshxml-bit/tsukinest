@@ -29,6 +29,9 @@ export function useReader() {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [chapterSearch, setChapterSearch] = useState("");
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  // Naikin angka ini buat maksa fetch chapter ulang dari awal (dipakai tombol refresh,
+  // soalnya di dalem APK gak ada gesture pull-to-refresh kayak browser biasa).
+  const [reloadKey, setReloadKey] = useState(0);
 
   const touchX = useRef<number | null>(null);
   const touchY = useRef<number | null>(null);
@@ -113,7 +116,7 @@ export function useReader() {
     };
     fetchData();
     return () => { cancelled = true; };
-  }, [chapterSlug, seriesSlug]);
+  }, [chapterSlug, seriesSlug, reloadKey]);
 
   /* ─── Preload adjacent pages in horizontal mode ─── */
   useEffect(() => {
@@ -186,6 +189,15 @@ export function useReader() {
   const onImageError = (index: number) =>
     setBrokenImages((prev) => new Set(prev).add(index));
 
+  /* ─── Manual refresh (dipake tombol footer, karena APK gak bisa pull-to-refresh) ─── */
+  const refreshChapter = useCallback(() => {
+    setData(null);
+    setBrokenImages(new Set());
+    setImgLoaded(false);
+    window.scrollTo(0, 0);
+    setReloadKey((k) => k + 1);
+  }, []);
+
   /* ─── Derived ─── */
   const progress = useMemo(() => {
     if (!data) return 0;
@@ -249,6 +261,7 @@ export function useReader() {
     handleNavigation,
     nextPage,
     prevPage,
+    refreshChapter,
     // Derived
     progress,
     scrollProgress,

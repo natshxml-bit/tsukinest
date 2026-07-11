@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Animasi pulse buat icon Tirai 1 (splash native Android 12+).
+    Cuma sekali jalan (oneshot) pas splash muncul, abis itu diem di frame terakhir
+    yang sama persis kayak icon statis biasa.
+-->
+<animation-list xmlns:android="http://schemas.android.com/apk/res/android"
+    android:oneshot="true">
+    <item android:drawable="@drawable/splash_pulse_f0" android:duration="70" />
+    <item android:drawable="@drawable/splash_pulse_f1" android:duration="70" />
+    <item android:drawable="@drawable/splash_pulse_f2" android:duration="70" />
+    <item android:drawable="@drawable/splash_pulse_f3" android:duration="70" />
+    <item android:drawable="@drawable/splash_pulse_f4" android:duration="70" />
+    <item android:drawable="@drawable/splash_pulse_f5" android:duration="70" />
+    <item android:drawable="@drawable/splash_pulse_f6" android:duration="70" />
+    <item android:drawable="@drawable/splash_pulse_f7" android:duration="70" />
+</animation-list>
