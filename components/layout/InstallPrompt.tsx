@@ -1,12 +1,27 @@
 "use client";
 
 import { Download, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 
 export default function InstallPrompt() {
-  const [show, setShow] = useState(true);
+  const [show, setShow] = useState(false);
+  const [ready, setReady] = useState(false);
 
-  if (!show) return null;
+  useEffect(() => {
+    setReady(true);
+
+    // Kalau sudah masuk APK Capacitor, jangan tampilkan banner
+    if (Capacitor.isNativePlatform()) {
+      setShow(false);
+      return;
+    }
+
+    // Tampilkan hanya di browser/web
+    setShow(true);
+  }, []);
+
+  if (!ready || !show) return null;
 
   return (
     <div className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-md">
@@ -14,7 +29,8 @@ export default function InstallPrompt() {
 
         <button
           onClick={() => setShow(false)}
-          className="absolute right-3 top-3 text-zinc-400 hover:text-white"
+          className="absolute right-3 top-3 text-zinc-400 hover:text-white transition"
+          aria-label="Close"
         >
           <X className="w-4 h-4" />
         </button>
@@ -23,7 +39,7 @@ export default function InstallPrompt() {
           Install TsukiNest APK
         </h3>
 
-        <p className="mb-4 text-xs text-zinc-400">
+        <p className="mb-4 text-xs text-zinc-400 leading-relaxed">
           Dapatkan pengalaman baca lebih cepat dengan aplikasi Android TsukiNest.
         </p>
 
