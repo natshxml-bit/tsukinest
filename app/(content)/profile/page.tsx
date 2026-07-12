@@ -8,7 +8,6 @@ import {
   memo,
 } from "react";
 import Link from "next/link";
-// Import signInWithGoogle dari lib/firebase lo yang baru
 import { auth, db, signInWithGoogle } from "@/lib/firebase"; 
 import {
   signOut,
@@ -22,7 +21,7 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
 } from "firebase/auth";
-import { collection, getDocs, doc, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, doc, onSnapshot, getCountFromServer } from "firebase/firestore";
 import { Capacitor } from "@capacitor/core";
 import { clearCache } from "@/lib/api";
 import {
@@ -51,6 +50,10 @@ import {
   HardDrive,
   UserCog,
   LayoutDashboard,
+  Bookmark,
+  Heart,
+  Crown,
+  Mail,
 } from "lucide-react";
 
 import Cropper from "react-easy-crop";
@@ -135,8 +138,8 @@ async function getCroppedImg(
 // SUB-COMPONENTS
 // ═══════════════════════════════════════════════════
 
-const IconGoogle = memo(() => (
-  <svg className="w-5 h-5" viewBox="0 0 24 24">
+const IconGoogle = memo(({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24">
     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
@@ -176,6 +179,8 @@ export default function ProfilePage() {
   
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [history, setHistory] = useState<ReadingHistory[]>([]);
+  const [bookmarkCount, setBookmarkCount] = useState<number | null>(null);
+  const [likeCount, setLikeCount] = useState<number | null>(null);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -258,6 +263,30 @@ export default function ProfilePage() {
       }
     };
     fetchHistoryFromFirebase();
+  }, [user]);
+
+  // Jumlah bookmark & like buat kartu stats. Pake getCountFromServer biar
+  // gak perlu download semua dokumen cuma buat ngitung jumlahnya.
+  useEffect(() => {
+    if (!user) {
+      setBookmarkCount(null);
+      setLikeCount(null);
+      return;
+    }
+    (async () => {
+      try {
+        const [bookmarkSnap, likeSnap] = await Promise.all([
+          getCountFromServer(collection(db, "users", user.uid, "bookmarks")),
+          getCountFromServer(collection(db, "users", user.uid, "likes")),
+        ]);
+        setBookmarkCount(bookmarkSnap.data().count);
+        setLikeCount(likeSnap.data().count);
+      } catch (error) {
+        console.error("Gagal ngambil jumlah bookmark/like:", error);
+        setBookmarkCount(0);
+        setLikeCount(0);
+      }
+    })();
   }, [user]);
 
   const handleGoogleLogin = async () => {
@@ -542,6 +571,10 @@ export default function ProfilePage() {
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDropPreview}
             >
+              <div
+                className="absolute -inset-2 rounded-full opacity-30 blur-xl pointer-events-none"
+                style={{ background: accentStyle.hex }}
+              />
               <div className="w-32 h-32 rounded-full overflow-hidden bg-[#1c1c1c] relative ring-1 ring-white/[0.06]">
                 <img
                   src={localPhoto || `https://ui-avatars.com/api/?name=${user.displayName || "U"}&background=1A1A24&color=fff`}
@@ -593,16 +626,32 @@ export default function ProfilePage() {
               <button onClick={handleEditName} className="text-gray-500 hover:text-white transition-all p-1.5 rounded-xl hover:bg-white/5 active:scale-90">
                 <Pencil className="w-3.5 h-3.5" />
               </button>
+              {role === "admin" && (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-bold uppercase tracking-wide">
+                  <Crown className="w-3 h-3" /> Admin
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-2 text-xs text-gray-400 mb-2">
-              <span className="truncate max-w-[220px]">{user.email}</span>
+              <span className="truncate max-w-[180px]">{user.email}</span>
               {user.emailVerified && (
                 <span className="px-2 py-0.5 rounded-lg bg-emerald-500/[0.1] text-emerald-400 border border-emerald-500/20 text-[10px] font-bold flex items-center gap-1">
                   <Check className="w-3 h-3" /> Terverifikasi
                 </span>
               )}
+              <span className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/[0.05] text-[10px] font-bold text-neutral-400 flex items-center gap-1">
+                {user.providerData[0]?.providerId === "google.com" ? (
+                  <IconGoogle className="w-3 h-3" />
+                ) : (
+                  <Mail className="w-3 h-3" />
+                )}
+              </span>
             </div>
+
+            <p className="text-[11px] text-neutral-600 mb-2 flex items-center gap-1.5">
+              <Calendar className="w-3 h-3" /> Bergabung {joinDate}
+            </p>
 
             <button
               onClick={copyUid}
@@ -614,17 +663,35 @@ export default function ProfilePage() {
           </div>
 
           {/* ── STATS ── */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="group relative overflow-hidden bg-[#141414] border border-white/[0.05] rounded-2xl p-4 flex flex-col items-center justify-center min-h-[100px] gap-1.5 transition-all">
-              <Calendar className={cn("w-5 h-5 mb-0.5", accentStyle.text)} />
-              <div className="text-sm font-bold text-white leading-tight text-center">{joinDate}</div>
-              <div className="text-[10px] text-gray-500 font-medium">Bergabung</div>
-            </div>
-            <div className="group relative overflow-hidden bg-[#141414] border border-white/[0.05] rounded-2xl p-4 flex flex-col items-center justify-center min-h-[100px] gap-1.5 transition-all">
-              <Clock className={cn("w-5 h-5 mb-0.5", accentStyle.text)} />
-              <div className="text-lg font-bold text-white leading-tight">{history.length}</div>
-              <div className="text-[10px] text-gray-500 font-medium">History</div>
-            </div>
+          <div className="grid grid-cols-3 gap-2.5">
+            <Link
+              href="/library"
+              className="group relative overflow-hidden bg-[#141414] border border-white/[0.05] rounded-2xl p-3.5 flex flex-col items-center justify-center min-h-[92px] gap-1.5 transition-all hover:border-white/10 active:scale-[0.97]"
+            >
+              <Clock className={cn("w-4.5 h-4.5", accentStyle.text)} />
+              <div className="text-base font-bold text-white leading-none">{history.length}</div>
+              <div className="text-[9px] text-gray-500 font-medium uppercase tracking-wide">Riwayat</div>
+            </Link>
+            <Link
+              href="/library"
+              className="group relative overflow-hidden bg-[#141414] border border-white/[0.05] rounded-2xl p-3.5 flex flex-col items-center justify-center min-h-[92px] gap-1.5 transition-all hover:border-white/10 active:scale-[0.97]"
+            >
+              <Bookmark className="w-4.5 h-4.5 text-sky-400" />
+              <div className="text-base font-bold text-white leading-none">
+                {bookmarkCount ?? <span className="inline-block w-4 h-3 bg-white/10 rounded animate-pulse" />}
+              </div>
+              <div className="text-[9px] text-gray-500 font-medium uppercase tracking-wide">Bookmark</div>
+            </Link>
+            <Link
+              href="/library"
+              className="group relative overflow-hidden bg-[#141414] border border-white/[0.05] rounded-2xl p-3.5 flex flex-col items-center justify-center min-h-[92px] gap-1.5 transition-all hover:border-white/10 active:scale-[0.97]"
+            >
+              <Heart className="w-4.5 h-4.5 text-rose-400" />
+              <div className="text-base font-bold text-white leading-none">
+                {likeCount ?? <span className="inline-block w-4 h-3 bg-white/10 rounded animate-pulse" />}
+              </div>
+              <div className="text-[9px] text-gray-500 font-medium uppercase tracking-wide">Disukai</div>
+            </Link>
           </div>
 
           {/* ── RECENT HISTORY ── */}

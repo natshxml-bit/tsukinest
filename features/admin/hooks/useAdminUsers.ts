@@ -87,8 +87,12 @@ export function useAdminUsers() {
     const total = users.length;
     const online = users.filter((u) => u.online).length;
     const admins = users.filter((u) => u.role === "admin").length;
-    return { total, online, admins, members: total - admins };
-  }, [users]);
+    const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+    const newThisWeek = users.filter(
+      (u) => u.createdAtMs !== null && u.createdAtMs > weekAgo
+    ).length;
+    return { total, online, admins, members: total - admins, newThisWeek };
+  }, [users, now]);
 
   return { users, stats, loading, error };
 }
