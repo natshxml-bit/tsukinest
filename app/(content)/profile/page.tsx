@@ -4,10 +4,12 @@ import {
   useState,
   useEffect,
   useCallback,
+  useMemo,
   useRef,
   memo,
 } from "react";
 import Link from "next/link";
+// Import signInWithGoogle dari lib/firebase lo yang baru
 import { auth, db, signInWithGoogle } from "@/lib/firebase"; 
 import {
   signOut,
@@ -54,6 +56,9 @@ import {
   Heart,
   Crown,
   Mail,
+  Flame,
+  Award,
+  PlayCircle,
 } from "lucide-react";
 
 import Cropper from "react-easy-crop";
@@ -67,6 +72,7 @@ type ReadingHistory = {
   slug: string;
   title: string;
   chapter: string;
+  chapterSlug: string;
   thumb: string;
   timestamp: number;
 };
@@ -97,6 +103,39 @@ function timeAgo(ts: number) {
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}j lalu`;
   return `${Math.floor(h / 24)}h lalu`;
+}
+
+// Hari beruntun baca, dihitung dari timestamp history yang udah ada
+// (gak butuh field baru di Firestore). Ngitung mundur dari hari ini;
+// kalau hari ini belum ada history, mulai ngitung dari kemarin biar
+// streak gak langsung putus jam 00:00 padahal baru "kemarin" baca.
+function getStreak(history: ReadingHistory[]): number {
+  if (history.length === 0) return 0;
+  const dayKey = (ts: number) => {
+    const d = new Date(ts);
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  };
+  const days = new Set(history.map((h) => dayKey(h.timestamp)));
+  const cursor = new Date();
+  if (!days.has(dayKey(cursor.getTime()))) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  let streak = 0;
+  while (days.has(dayKey(cursor.getTime()))) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+// Tingkatan pembaca, murni kosmetik berdasarkan jumlah history —
+// gak nyimpen apapun ke server, cuma dihitung pas render.
+function getReaderTier(historyCount: number): { label: string; badgeClass: string } {
+  if (historyCount >= 200) return { label: "Legenda", badgeClass: "bg-rose-500/10 text-rose-400" };
+  if (historyCount >= 75) return { label: "Otaku Sejati", badgeClass: "bg-amber-500/10 text-amber-400" };
+  if (historyCount >= 25) return { label: "Kutu Buku", badgeClass: "bg-violet-500/10 text-violet-400" };
+  if (historyCount >= 5) return { label: "Pembaca Aktif", badgeClass: "bg-sky-500/10 text-sky-400" };
+  return { label: "Pemula", badgeClass: "bg-white/5 text-neutral-400" };
 }
 
 const createImage = (url: string): Promise<HTMLImageElement> =>
@@ -252,6 +291,7 @@ export default function ProfilePage() {
             slug: data.slug || doc.id,
             title: data.title || "Tanpa Judul",
             chapter: data.lastReadChapter || "",
+            chapterSlug: data.chapter_slug || "",
             thumb: data.thumb || "",
             timestamp: data.savedAt || 0,
           });
@@ -519,6 +559,10 @@ export default function ProfilePage() {
 
   const joinDate = user?.metadata?.creationTime ? formatDate(new Date(user.metadata.creationTime).getTime()) : "-";
 
+  const streak = useMemo(() => getStreak(history), [history]);
+  const tier = useMemo(() => getReaderTier(history.length), [history.length]);
+  const continueItem = history[0] ?? null;
+
   if (isLoading) return <SkeletonProfile />;
 
   return (
@@ -543,6 +587,10 @@ export default function ProfilePage() {
       </div>
 
       {/* ── HEADER ── */}
+      <div
+        className="absolute top-0 left-0 right-0 h-56 pointer-events-none opacity-[0.15]"
+        style={{ background: `radial-gradient(60% 100% at 50% 0%, ${accentStyle.hex}, transparent)` }}
+      />
       <div className="max-w-md mx-auto px-5 pt-8 pb-4 relative z-10">
         <div className="flex items-center gap-3 mb-8">
           <div className={cn(
@@ -660,7 +708,38 @@ export default function ProfilePage() {
               <span className="text-[11px] text-gray-500 font-mono tracking-tight">{user.uid.slice(0, 14)}...</span>
               <Copy className="w-3.5 h-3.5 text-gray-600 group-hover:text-white transition-colors" />
             </button>
+
+            <div className="flex items-center gap-2 mt-4 flex-wrap justify-center">
+              <span className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold", tier.badgeClass)}>
+                <Award className="w-3.5 h-3.5" /> {tier.label}
+              </span>
+              {streak > 0 && (
+                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold bg-orange-500/10 text-orange-400">
+                  <Flame className="w-3.5 h-3.5" /> {streak} hari beruntun
+                </span>
+              )}
+            </div>
           </div>
+
+          {/* ── LANJUTKAN BACA ── */}
+          {continueItem && (
+            <a
+              href={continueItem.chapterSlug ? `/chapter/${continueItem.slug}/${continueItem.chapterSlug}` : `/manga/${continueItem.slug}`}
+              className="flex items-center gap-3.5 bg-[#141414] border border-white/[0.05] rounded-2xl p-3 hover:border-white/10 transition-all active:scale-[0.98] group"
+            >
+              <div className="w-14 h-[72px] rounded-xl overflow-hidden bg-[#1c1c1c] flex-shrink-0">
+                <img src={continueItem.thumb || "/no-image.png"} alt={continueItem.title} className="w-full h-full object-cover" loading="lazy" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: accentStyle.hex }}>Lanjutkan Baca</p>
+                <p className="text-sm font-semibold text-white truncate">{continueItem.title}</p>
+                <p className="text-[11px] text-neutral-500 mt-0.5">{continueItem.chapter} · {timeAgo(continueItem.timestamp)}</p>
+              </div>
+              <div className={cn("w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110", accentStyle.bg)}>
+                <PlayCircle className="w-4.5 h-4.5 text-white" />
+              </div>
+            </a>
+          )}
 
           {/* ── STATS ── */}
           <div className="grid grid-cols-3 gap-2.5">
