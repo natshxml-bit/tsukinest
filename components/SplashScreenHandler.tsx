@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SplashScreen } from "@capacitor/splash-screen";
-
+import { StatusBar, Style } from "@capacitor/status-bar";
 /**
  * Tirai 1 (native, dikontrol Android OS/styles.xml) cuma bisa nampilin
  * bg warna solid + ikon kecil. Komponen ini adalah "Tirai 2": overlay
@@ -42,6 +42,10 @@ export default function SplashScreenHandler() {
     };
 
     hideNativeSplash();
+    
+    StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
+StatusBar.setBackgroundColor({ color: "#0a0a0a" }).catch(() => {});
+StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
 
     // Overlay tampil sebentar, lalu fade out ke konten asli.
     const fadeTimer = setTimeout(() => setFading(true), 1600);
