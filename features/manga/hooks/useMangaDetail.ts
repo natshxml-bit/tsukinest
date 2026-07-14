@@ -5,24 +5,35 @@ import { useParams, useRouter } from "next/navigation";
 import { getDetail } from "@/lib/api";
 import { auth, db } from "@/lib/firebase";
 import {
-  collection,
-  query,
-  where,
   onSnapshot,
   doc,
   setDoc,
   deleteDoc,
   serverTimestamp,
-  getDoc,
+  arrayUnion,
 } from "firebase/firestore";
 import type { User as FirebaseUser } from "firebase/auth";
-import type { MangaDetail as MangaDetailType } from "@/features/manga/types/manga.types";
+import type { MangaDetail as MangaDetailType } from "@/features/manga/types";
 
 /* ─── Types ─── */
 interface Chapter {
   slug: string;
   chapter_number: string;
   release_date: string;
+}
+
+// API detail (/detail/{slug}) balikin field chapters[] dengan nama field yang
+// gak konsisten antar sumber (scraped backend) — kadang chapter_number,
+// kadang cuma "chapter"; kadang slug, kadang chapter_slug. Baca defensif
+// biar daftar bab gak kosong cuma gara-gara satu sumber pakai nama beda.
+function normalizeChapter(ch: unknown, index: number): Chapter {
+  const raw = (ch ?? {}) as Record<string, unknown>;
+  return {
+    slug: (raw.slug as string) || (raw.chapter_slug as string) || "",
+    chapter_number:
+      (raw.chapter_number as string) || (raw.chapter as string) || `Ch. ${index + 1}`,
+    release_date: (raw.release_date as string) || "",
+  };
 }
 
 /* ─── Hook ─── */
@@ -45,52 +56,32 @@ export function useMangaDetail() {
   }, []);
 
   /* ═══════════════════════════════════════════════════
-     FIREBASE: BOOKMARK & LIKE (user_library)
+     FIREBASE: BOOKMARK & LIKE
+     Pakai users/{uid}/bookmarks/{slug} & users/{uid}/likes/{slug} —
+     subcollection yang sama dengan explore/page.tsx & library/page.tsx,
+     dan yang dicover firestore.rules. Doc ID = slug, jadi cek
+     ada/gaknya tinggal onSnapshot ke doc-nya langsung (gak perlu query).
      ═══════════════════════════════════════════════════ */
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
-  const [bookmarkDocId, setBookmarkDocId] = useState<string | null>(null);
-  const [likeDocId, setLikeDocId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.uid || !slug) {
       setIsBookmarked(false);
-      setIsLiked(false);
-      setBookmarkDocId(null);
-      setLikeDocId(null);
       return;
     }
+    const ref = doc(db, "users", user.uid, "bookmarks", slug);
+    const unsub = onSnapshot(ref, (snap) => setIsBookmarked(snap.exists()));
+    return () => unsub();
+  }, [user?.uid, slug]);
 
-    const q = query(
-      collection(db, "user_library"),
-      where("userId", "==", user.uid),
-      where("slug", "==", slug)
-    );
-
-    const unsub = onSnapshot(q, (snap) => {
-      let bookmarked = false;
-      let liked = false;
-      let bDocId: string | null = null;
-      let lDocId: string | null = null;
-
-      snap.docs.forEach((d) => {
-        const data = d.data();
-        if (data.type === "bookmark") {
-          bookmarked = true;
-          bDocId = d.id;
-        }
-        if (data.type === "like") {
-          liked = true;
-          lDocId = d.id;
-        }
-      });
-
-      setIsBookmarked(bookmarked);
-      setIsLiked(liked);
-      setBookmarkDocId(bDocId);
-      setLikeDocId(lDocId);
-    });
-
+  useEffect(() => {
+    if (!user?.uid || !slug) {
+      setIsLiked(false);
+      return;
+    }
+    const ref = doc(db, "users", user.uid, "likes", slug);
+    const unsub = onSnapshot(ref, (snap) => setIsLiked(snap.exists()));
     return () => unsub();
   }, [user?.uid, slug]);
 
@@ -103,21 +94,21 @@ export function useMangaDetail() {
     }
     if (!slug || !data) return;
 
-    if (isBookmarked && bookmarkDocId) {
-      await deleteDoc(doc(db, "user_library", bookmarkDocId));
+    const ref = doc(db, "users", user.uid, "bookmarks", slug);
+    if (isBookmarked) {
+      await deleteDoc(ref);
     } else {
-      const newDocRef = doc(collection(db, "user_library"));
-      await setDoc(newDocRef, {
-        userId: user.uid,
+      await setDoc(ref, {
+        id: slug,
         slug,
         title: data.title || "",
         thumb: data.thumb || "",
-        type: "bookmark",
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        type: data.type || "manga",
+        latest_chapter: normalizeChapter(data.chapters?.[0], 0).chapter_number,
+        savedAt: Date.now(),
       });
     }
-  }, [user, slug, data, isBookmarked, bookmarkDocId]);
+  }, [user, slug, data, isBookmarked]);
 
   /* ─── Toggle Like ─── */
   const toggleLike = useCallback(async () => {
@@ -128,24 +119,29 @@ export function useMangaDetail() {
     }
     if (!slug || !data) return;
 
-    if (isLiked && likeDocId) {
-      await deleteDoc(doc(db, "user_library", likeDocId));
+    const ref = doc(db, "users", user.uid, "likes", slug);
+    if (isLiked) {
+      await deleteDoc(ref);
     } else {
-      const newDocRef = doc(collection(db, "user_library"));
-      await setDoc(newDocRef, {
-        userId: user.uid,
+      await setDoc(ref, {
+        id: slug,
         slug,
         title: data.title || "",
         thumb: data.thumb || "",
-        type: "like",
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        type: data.type || "manga",
+        latest_chapter: normalizeChapter(data.chapters?.[0], 0).chapter_number,
+        savedAt: Date.now(),
       });
     }
-  }, [user, slug, data, isLiked, likeDocId]);
+  }, [user, slug, data, isLiked]);
 
   /* ═══════════════════════════════════════════════════
-     FIREBASE: READING PROGRESS (user_reading_progress)
+     FIREBASE: READING PROGRESS
+     Pakai users/{uid}/reading_progress/{slug} — subcollection yang
+     sama dicover firestore.rules dan dipakai useReadingProgress.ts
+     (ChapterReader). Skema field disamain (readChapters, lastReadChapter,
+     lastReadPage, updatedAt) biar dua hook ini nulis ke dokumen &
+     bentuk data yang konsisten, bukan dua sistem progress yang beda.
      ═══════════════════════════════════════════════════ */
   const [readChapters, setReadChapters] = useState<string[]>([]);
   const [lastReadChapterSlug, setLastReadChapterSlug] = useState<string | null>(null);
@@ -160,15 +156,15 @@ export function useMangaDetail() {
       return;
     }
 
-    const progressDocId = `${user.uid}_${slug}`;
+    const progressRef = doc(db, "users", user.uid, "reading_progress", slug);
     const unsub = onSnapshot(
-      doc(db, "user_reading_progress", progressDocId),
+      progressRef,
       (docSnap) => {
         if (docSnap.exists()) {
           const d = docSnap.data();
           setReadChapters(d.readChapters || []);
-          setLastReadChapterSlug(d.chapterSlug || null);
-          setLastReadPage(d.page || 0);
+          setLastReadChapterSlug(d.lastReadChapter || null);
+          setLastReadPage(d.lastReadPage || 0);
         } else {
           setReadChapters([]);
           setLastReadChapterSlug(null);
@@ -191,52 +187,19 @@ export function useMangaDetail() {
     async (chapterSlug: string) => {
       if (!user?.uid || !slug) return;
 
-      const progressDocId = `${user.uid}_${slug}`;
-      const progressRef = doc(db, "user_reading_progress", progressDocId);
-
-      // Get current data
-      const currentSnap = await getDoc(progressRef);
-      const currentData = currentSnap.exists() ? currentSnap.data() : {};
-      const currentRead = currentData.readChapters || [];
-
-      if (currentRead.includes(chapterSlug)) {
-        // Already read, just update last read
-        await setDoc(
-          progressRef,
-          {
-            userId: user.uid,
-            slug,
-            chapterSlug,
-            chapterNumber:
-              data?.chapter_list?.find((c) => c.slug === chapterSlug)?.chapter_number || "",
-            page: 0,
-            readChapters: currentRead,
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
-        return;
-      }
-
-      // Add to read chapters
-      const newReadChapters = [...currentRead, chapterSlug];
-
+      const progressRef = doc(db, "users", user.uid, "reading_progress", slug);
       await setDoc(
         progressRef,
         {
-          userId: user.uid,
-          slug,
-          chapterSlug,
-          chapterNumber:
-            data?.chapter_list?.find((c) => c.slug === chapterSlug)?.chapter_number || "",
-          page: 0,
-          readChapters: newReadChapters,
+          readChapters: arrayUnion(chapterSlug),
+          lastReadChapter: chapterSlug,
+          lastReadPage: 0,
           updatedAt: serverTimestamp(),
         },
         { merge: true }
       );
     },
-    [user?.uid, slug, data]
+    [user?.uid, slug]
   );
 
   /* ─── Save Reading Position (dari ChapterReader) ─── */
@@ -244,29 +207,19 @@ export function useMangaDetail() {
     async (chapterSlug: string, page: number) => {
       if (!user?.uid || !slug) return;
 
-      const progressDocId = `${user.uid}_${slug}`;
-      const progressRef = doc(db, "user_reading_progress", progressDocId);
-
-      const currentSnap = await getDoc(progressRef);
-      const currentData = currentSnap.exists() ? currentSnap.data() : {};
-      const currentRead = currentData.readChapters || [];
-
+      const progressRef = doc(db, "users", user.uid, "reading_progress", slug);
       await setDoc(
         progressRef,
         {
-          userId: user.uid,
-          slug,
-          chapterSlug,
-          chapterNumber:
-            data?.chapter_list?.find((c) => c.slug === chapterSlug)?.chapter_number || "",
-          page,
-          readChapters: currentRead,
+          readChapters: arrayUnion(chapterSlug),
+          lastReadChapter: chapterSlug,
+          lastReadPage: page,
           updatedAt: serverTimestamp(),
         },
         { merge: true }
       );
     },
-    [user?.uid, slug, data]
+    [user?.uid, slug]
   );
 
   /* ─── Fetch manga data ─── */
@@ -304,13 +257,9 @@ export function useMangaDetail() {
 
   /* ─── Derived: chapters ─── */
   const chapters = useMemo<Chapter[]>(() => {
-    if (!data?.chapter_list) return [];
-    return data.chapter_list.map((ch) => ({
-      slug: ch.slug,
-      chapter_number: ch.chapter_number,
-      release_date: ch.release_date,
-    }));
-  }, [data?.chapter_list]);
+    if (!data?.chapters) return [];
+    return data.chapters.map((ch, i) => normalizeChapter(ch, i));
+  }, [data?.chapters]);
 
   /* ─── Derived: sorted chapters ─── */
   const sortedChapters = useMemo(() => {
@@ -435,13 +384,15 @@ export function useMangaDetail() {
   }, [data?.artist]);
 
   const genres = useMemo(() => {
-    if (!data?.genre) return [];
-    return Array.isArray(data.genre) ? data.genre : [data.genre];
-  }, [data?.genre]);
+    if (!data?.genres) return [];
+    return data.genres
+      .map((g) => (typeof g === "string" ? g : g?.name || ""))
+      .filter(Boolean);
+  }, [data?.genres]);
 
   const displayTotalChapters = useMemo(() => {
-    return data?.chapter_list?.length || 0;
-  }, [data?.chapter_list]);
+    return data?.chapters?.length || 0;
+  }, [data?.chapters]);
 
   /* ─── Click outside settings ─── */
   useEffect(() => {

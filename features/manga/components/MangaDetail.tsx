@@ -151,7 +151,7 @@ export function MangaDetail() {
         imageQuality={hook.imageQuality}
         settingsRef={hook.settingsRef}
         onBack={hook.handleBack}
-        onToggleLike={() => hook.setIsLiked(!hook.isLiked)}
+        onToggleLike={hook.toggleLike}
         onShare={hook.handleShare}
         onToggleSettings={() => hook.setShowSettings(!hook.showSettings)}
         onReadingModeChange={hook.saveReadingMode}
