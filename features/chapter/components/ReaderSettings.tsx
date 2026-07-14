@@ -259,8 +259,8 @@ export function ChapterListDrawer({
 /* ─── Comments Drawer ─── */
 export function CommentsDrawer({
   show, comments, user, accentStyle, accent, commentText, commentImage, replyTo, editCommentId,
-  isUploadingImage, onClose, onSubmit, onReply, onEdit, onDelete, onTextChange, onImageUpload,
-  onClearReply, commentInputRef, router,
+  isUploadingImage, deleteConfirmId, onClose, onSubmit, onReply, onEdit, onDelete, onTextChange,
+  onImageUpload, onClearReply, onImageClear, commentInputRef, router,
 }: {
   show: boolean;
   comments: Comment[];
@@ -328,7 +328,7 @@ export function CommentsDrawer({
                 <div className="relative self-start w-fit">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={commentImage} className="h-14 w-14 object-cover rounded-lg border border-white/10" alt="Preview" />
-                  <button type="button" onClick={() => onImageUpload(new File([], ""))} className="absolute -top-1.5 -right-1.5 bg-gray-800 border border-white/10 text-white rounded-full p-0.5 hover:bg-red-500 transition-colors">
+                  <button type="button" onClick={onImageClear} className="absolute -top-1.5 -right-1.5 bg-gray-800 border border-white/10 text-white rounded-full p-0.5 hover:bg-red-500 transition-colors">
                     <X className="w-3 h-3" />
                   </button>
                 </div>

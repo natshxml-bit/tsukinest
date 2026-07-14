@@ -9,7 +9,6 @@ import {
   memo,
 } from "react";
 import Link from "next/link";
-// Import signInWithGoogle dari lib/firebase lo yang baru
 import { auth, db, signInWithGoogle } from "@/lib/firebase"; 
 import {
   signOut,
@@ -105,10 +104,6 @@ function timeAgo(ts: number) {
   return `${Math.floor(h / 24)}h lalu`;
 }
 
-// Hari beruntun baca, dihitung dari timestamp history yang udah ada
-// (gak butuh field baru di Firestore). Ngitung mundur dari hari ini;
-// kalau hari ini belum ada history, mulai ngitung dari kemarin biar
-// streak gak langsung putus jam 00:00 padahal baru "kemarin" baca.
 function getStreak(history: ReadingHistory[]): number {
   if (history.length === 0) return 0;
   const dayKey = (ts: number) => {
@@ -128,8 +123,6 @@ function getStreak(history: ReadingHistory[]): number {
   return streak;
 }
 
-// Tingkatan pembaca, murni kosmetik berdasarkan jumlah history —
-// gak nyimpen apapun ke server, cuma dihitung pas render.
 function getReaderTier(historyCount: number): { label: string; badgeClass: string } {
   if (historyCount >= 200) return { label: "Legenda", badgeClass: "bg-rose-500/10 text-rose-400" };
   if (historyCount >= 75) return { label: "Otaku Sejati", badgeClass: "bg-amber-500/10 text-amber-400" };
@@ -262,8 +255,6 @@ export default function ProfilePage() {
     return () => unsub();
   }, []);
 
-  // Baca role user (admin/member) buat nampilin link Dashboard Admin
-  // kalau relevan. Dokumennya sendiri dibuat otomatis oleh <PresenceTracker />.
   useEffect(() => {
     if (!user) {
       setRole(null);
@@ -305,8 +296,6 @@ export default function ProfilePage() {
     fetchHistoryFromFirebase();
   }, [user]);
 
-  // Jumlah bookmark & like buat kartu stats. Pake getCountFromServer biar
-  // gak perlu download semua dokumen cuma buat ngitung jumlahnya.
   useEffect(() => {
     if (!user) {
       setBookmarkCount(null);
@@ -339,7 +328,7 @@ export default function ProfilePage() {
       console.error("Login Google Error:", error);
       if (
         error.code !== "auth/popup-closed-by-user" &&
-        error.message !== "12501: " && // Kode cancel native Android
+        error.message !== "12501: " &&
         !error.message?.includes("canceled")
       ) {
         triggerToast("Gagal masuk dengan Google.", "error");
@@ -420,29 +409,46 @@ export default function ProfilePage() {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
 
+  // ═══════════════════════════════════════════════════
+  // CONFIRM UPLOAD — IMAGEKIT VIA API ROUTE
+  // ═══════════════════════════════════════════════════
   const confirmUpload = async () => {
     if (!previewImage || !croppedAreaPixels || !user) return;
     setIsUploading(true);
     try {
       const croppedBlob = await getCroppedImg(previewImage, croppedAreaPixels);
       if (!croppedBlob) throw new Error("Gagal memotong gambar");
-      const croppedFile = new File([croppedBlob], `profile_${Date.now()}.jpg`, { type: "image/jpeg" });
+
+      // Siapkan file untuk upload ke API Route internal
+      const fileName = `profile_${user.uid}_${Date.now()}.jpg`;
+      const croppedFile = new File([croppedBlob], fileName, { type: "image/jpeg" });
+
       const formData = new FormData();
-      formData.append("image", croppedFile);
-      const imgbbKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
-      if (!imgbbKey) throw new Error("No API key");
-      const res = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {
+      formData.append("file", croppedFile);
+      formData.append("fileName", fileName);
+
+      // Upload ke API Route server-side (aman, private key tidak terexpos)
+      const res = await fetch("/api/upload-imagekit", {
         method: "POST",
         body: formData,
       });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Upload failed");
+      }
+
       const data = await res.json();
-      if (data.success) {
-        const url = data.data.display_url;
-        await updateProfile(user, { photoURL: url });
-        setLocalPhoto(url);
+      
+      if (data.url) {
+        await updateProfile(user, { photoURL: data.url });
+        setLocalPhoto(data.url);
         triggerToast("Foto profil diperbarui.", "success");
-      } else throw new Error("Upload failed");
-    } catch {
+      } else {
+        throw new Error("Upload failed");
+      }
+    } catch (error) {
+      console.error(error);
       triggerToast("Gagal mengunggah foto.", "error");
     } finally {
       setIsUploading(false);
@@ -952,9 +958,6 @@ export default function ProfilePage() {
             </span>
           </p>
 
-          {/* ═══════════════════════════════════════════════
-              TOMBOL GOOGLE SEKARANG MUNCUL DI WEB DAN APK 🚀
-              ═══════════════════════════════════════════════ */}
           <>
             <div className="flex items-center gap-3 mb-6">
               <div className="h-px flex-1 bg-white/[0.05]" />
@@ -1042,9 +1045,7 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════
-          SETTINGS SHEET
-          ═══════════════════════════════════════════════ */}
+      {/* SETTINGS SHEET */}
       {isSettingsOpen && user && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md">
           <div
@@ -1067,7 +1068,6 @@ export default function ProfilePage() {
             </div>
 
             <div className="p-5 space-y-8">
-              {/* Tampilan */}
               <section>
                 <h4 className="text-[10px] font-bold text-neutral-500 uppercase tracking-[0.15em] mb-4 flex items-center gap-2">
                   <Palette className="w-3 h-3" /> Tampilan
@@ -1166,7 +1166,6 @@ export default function ProfilePage() {
                 </div>
               </section>
 
-              {/* Akun */}
               <section>
                 <h4 className="text-[10px] font-bold text-neutral-500 uppercase tracking-[0.15em] mb-4 flex items-center gap-2">
                   <UserCog className="w-3 h-3" /> Akun
@@ -1205,7 +1204,6 @@ export default function ProfilePage() {
                 </div>
               </section>
 
-              {/* Data */}
               <section>
                 <h4 className="text-[10px] font-bold text-neutral-500 uppercase tracking-[0.15em] mb-4 flex items-center gap-2">
                   <HardDrive className="w-3 h-3" /> Data
@@ -1246,9 +1244,7 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════
-          CONFIRM MODAL
-          ═══════════════════════════════════════════════ */}
+      {/* CONFIRM MODAL */}
       {confirmModal.show && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-[#141414] border border-white/[0.05] w-full max-w-xs rounded-3xl p-6 text-center">
@@ -1288,9 +1284,7 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════
-          PROMPT MODAL
-          ═══════════════════════════════════════════════ */}
+      {/* PROMPT MODAL */}
       {promptModal.show && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-[#141414] border border-white/[0.05] w-full max-w-xs rounded-3xl p-6">

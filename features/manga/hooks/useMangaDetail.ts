@@ -1,400 +1,535 @@
 "use client";
-// features/manga/hooks/useMangaDetail.ts
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { getDetail } from "@/lib/api";
 import { auth, db } from "@/lib/firebase";
-// 1. TAMBAHKAN arrayUnion di sini
-import { doc, getDoc, setDoc, deleteDoc, arrayUnion } from "firebase/firestore";
-import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
-import { fetchMangaDetail } from "@/features/manga/services/manga.service";
-import type {
-  MangaDetail,
-  ChapterItem,
-  DetailTab,
-  SortOrder,
-  ReadingMode,
-  ImageQuality,
-} from "@/features/manga/types";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  doc,
+  setDoc,
+  deleteDoc,
+  serverTimestamp,
+  getDoc,
+} from "firebase/firestore";
+import type { User as FirebaseUser } from "firebase/auth";
+import type { MangaDetail as MangaDetailType } from "@/features/manga/types/manga.types";
 
-const READ_CHAPTERS_KEY = "tsukinest_read_chapters";
-const READING_MODE_KEY = "tsukinest_theme";
+/* ─── Types ─── */
+interface Chapter {
+  slug: string;
+  chapter_number: string;
+  release_date: string;
+}
 
+/* ─── Hook ─── */
 export function useMangaDetail() {
   const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const slug = params?.slug as string;
+  const slug = (params?.slug as string) || "";
 
-  // Data state
-  const [data, setData] = useState<MangaDetail | null>(null);
+  /* ─── Data ─── */
+  const [data, setData] = useState<MangaDetailType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // User state
+  /* ─── Auth ─── */
   const [user, setUser] = useState<FirebaseUser | null>(null);
+
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((u) => setUser(u));
+    return () => unsub();
+  }, []);
+
+  /* ═══════════════════════════════════════════════════
+     FIREBASE: BOOKMARK & LIKE (user_library)
+     ═══════════════════════════════════════════════════ */
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
+  const [bookmarkDocId, setBookmarkDocId] = useState<string | null>(null);
+  const [likeDocId, setLikeDocId] = useState<string | null>(null);
 
-  // UI state
-  const [activeTab, setActiveTab] = useState<DetailTab>("chapters");
-  const [showFullSynopsis, setShowFullSynopsis] = useState(false);
-  const [showAllChapters, setShowAllChapters] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showNotification, setShowNotification] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  // Chapter state
-  const [readChapters, setReadChapters] = useState<string[]>([]);
-  const [lastReadChapter, setLastReadChapter] = useState<string | null>(null);
-  const [chapterFilter, setChapterFilter] = useState("");
-  const [chapterSort, setChapterSort] = useState<SortOrder>("newest");
-
-  // Settings state
-  const [readingMode, setReadingMode] = useState<ReadingMode>("vertical");
-  const [imageQuality, setImageQuality] = useState<ImageQuality>("high");
-
-  // Refs
-  const settingsRef = useRef<HTMLDivElement>(null);
-  const chapterListRef = useRef<HTMLDivElement>(null);
-
-  /* ─── Auth ─── */
   useEffect(() => {
-    return onAuthStateChanged(auth, setUser);
-  }, []);
-
-  /* ─── Load local preferences (Guest / Fallback) ─── */
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(READ_CHAPTERS_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as string[];
-        setReadChapters(parsed);
-        if (parsed.length > 0) setLastReadChapter(parsed[parsed.length - 1]);
-      }
-      const storedMode = localStorage.getItem(READING_MODE_KEY);
-      if (storedMode) setReadingMode(storedMode as ReadingMode);
-    } catch {
-      // ignore localStorage errors
+    if (!user?.uid || !slug) {
+      setIsBookmarked(false);
+      setIsLiked(false);
+      setBookmarkDocId(null);
+      setLikeDocId(null);
+      return;
     }
-  }, []);
 
-  /* ─── NEW: Fetch History from Firebase Firestore ─── */
-  useEffect(() => {
-    if (!user || !slug) return;
-    const fetchHistory = async () => {
-      try {
-        const docRef = doc(db, "users", user.uid, "history", slug);
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          const historyData = snap.data();
-          
-          // Gabungkan chapter dari Firebase & LocalStorage tanpa duplikat
-          if (historyData.read_chapters && Array.isArray(historyData.read_chapters)) {
-            setReadChapters((prev) => {
-              const merged = Array.from(new Set([...prev, ...historyData.read_chapters]));
-              try {
-                localStorage.setItem(READ_CHAPTERS_KEY, JSON.stringify(merged));
-              } catch {}
-              return merged;
-            });
-          }
+    const q = query(
+      collection(db, "user_library"),
+      where("userId", "==", user.uid),
+      where("slug", "==", slug)
+    );
 
-          if (historyData.last_read_chapter) {
-            setLastReadChapter(historyData.last_read_chapter);
-          }
+    const unsub = onSnapshot(q, (snap) => {
+      let bookmarked = false;
+      let liked = false;
+      let bDocId: string | null = null;
+      let lDocId: string | null = null;
+
+      snap.docs.forEach((d) => {
+        const data = d.data();
+        if (data.type === "bookmark") {
+          bookmarked = true;
+          bDocId = d.id;
         }
-      } catch (err) {
-        console.error("Gagal mengambil history dari Firebase:", err);
-      }
-    };
-    fetchHistory();
-  }, [user, slug]);
-
-  /* ─── Check bookmark ─── */
-  useEffect(() => {
-    if (!user || !slug) return;
-    const check = async () => {
-      try {
-        const snap = await getDoc(doc(db, "users", user.uid, "bookmarks", slug));
-        setIsBookmarked(snap.exists());
-      } catch {
-        // ignore
-      }
-    };
-    check();
-  }, [user, slug]);
-
-  /* ─── Fetch manga detail ─── */
-  useEffect(() => {
-    if (!slug) return;
-    let cancelled = false;
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const normalized = await fetchMangaDetail(slug);
-        if (!cancelled) {
-          if (!normalized) {
-            setError("Gagal memuat informasi seri.");
-          } else {
-            setData(normalized);
-          }
+        if (data.type === "like") {
+          liked = true;
+          lDocId = d.id;
         }
-      } catch {
-        if (!cancelled) setError("Terjadi kesalahan sistem saat memuat data.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [slug]);
+      });
 
-  /* ─── Auto scroll to last read ─── */
-  useEffect(() => {
-    if (activeTab === "chapters" && lastReadChapter) {
-      setTimeout(() => {
-        document
-          .getElementById(`chapter-${lastReadChapter}`)
-          ?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 500);
-    }
-  }, [activeTab, showAllChapters, lastReadChapter]);
-
-  /* ─── Actions (UPDATED with Firebase Sync) ─── */
-  const markChapterAsRead = useCallback(async (chapterSlug: string) => {
-    // 1. Update State & LocalStorage dulu biar UI langsung responsif (Optimistic UI)
-    setReadChapters((prev) => {
-      if (prev.includes(chapterSlug)) return prev;
-      const updated = [...prev, chapterSlug];
-      try {
-        localStorage.setItem(READ_CHAPTERS_KEY, JSON.stringify(updated));
-      } catch {}
-      return updated;
+      setIsBookmarked(bookmarked);
+      setIsLiked(liked);
+      setBookmarkDocId(bDocId);
+      setLikeDocId(lDocId);
     });
-    setLastReadChapter(chapterSlug);
 
-    // 2. Kalau user login & data manga ada, simpan ke Firebase Firestore
-    if (user && data && slug) {
-      try {
-        const historyRef = doc(db, "users", user.uid, "history", slug);
-        await setDoc(
-          historyRef,
-          {
-            id: slug,
-            slug: slug,
-            title: data.title,
-            thumb: data.thumb,
-            type: data.type || "MANHWA",
-            read_chapters: arrayUnion(chapterSlug), // Otomatis nambah ke array di Firebase
-            last_read_chapter: chapterSlug,
-            updatedAt: Date.now(),
-          },
-          { merge: true } // Merge agar tidak menghapus field lain jika ada
-        );
-      } catch (err) {
-        console.error("Gagal menyimpan history ke Firebase:", err);
-      }
-    }
-  }, [user, data, slug]);
+    return () => unsub();
+  }, [user?.uid, slug]);
 
-  const toggleBookmark = async () => {
+  /* ─── Toggle Bookmark ─── */
+  const toggleBookmark = useCallback(async () => {
     if (!user) {
       setShowNotification(true);
       setTimeout(() => setShowNotification(false), 3000);
       return;
     }
-    if (!data) return;
-    try {
-      const docRef = doc(db, "users", user.uid, "bookmarks", slug);
-      if (isBookmarked) {
-        setIsBookmarked(false);
-        await deleteDoc(docRef);
-      } else {
-        setIsBookmarked(true);
-        await setDoc(docRef, {
-          id: slug,
-          slug,
-          title: data.title,
-          thumb: data.thumb,
-          type: data.type || "MANHWA",
-          rating: data.rating || "0",
-          latest_chapter: data.chapters[0]?.chapter_number || "Ch. ?",
-          savedAt: Date.now(),
-        });
-      }
-    } catch {
-      setIsBookmarked((v) => !v);
-    }
-  };
+    if (!slug || !data) return;
 
-  const handleBack = useCallback(() => {
-    const from = searchParams.get("from");
-    if (from?.startsWith("/")) {
-      router.push(from);
+    if (isBookmarked && bookmarkDocId) {
+      await deleteDoc(doc(db, "user_library", bookmarkDocId));
     } else {
-      router.back();
+      const newDocRef = doc(collection(db, "user_library"));
+      await setDoc(newDocRef, {
+        userId: user.uid,
+        slug,
+        title: data.title || "",
+        thumb: data.thumb || "",
+        type: "bookmark",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
     }
-  }, [searchParams, router]);
+  }, [user, slug, data, isBookmarked, bookmarkDocId]);
 
-  const handleShare = async () => {
-    if (navigator.share && data) {
-      try {
-        await navigator.share({
-          title: data.title,
-          text: `Baca ${data.title} di TsukiNest!`,
-          url: window.location.href,
-        });
-        return;
-      } catch {
-        // fallback to modal
+  /* ─── Toggle Like ─── */
+  const toggleLike = useCallback(async () => {
+    if (!user) {
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 3000);
+      return;
+    }
+    if (!slug || !data) return;
+
+    if (isLiked && likeDocId) {
+      await deleteDoc(doc(db, "user_library", likeDocId));
+    } else {
+      const newDocRef = doc(collection(db, "user_library"));
+      await setDoc(newDocRef, {
+        userId: user.uid,
+        slug,
+        title: data.title || "",
+        thumb: data.thumb || "",
+        type: "like",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+  }, [user, slug, data, isLiked, likeDocId]);
+
+  /* ═══════════════════════════════════════════════════
+     FIREBASE: READING PROGRESS (user_reading_progress)
+     ═══════════════════════════════════════════════════ */
+  const [readChapters, setReadChapters] = useState<string[]>([]);
+  const [lastReadChapterSlug, setLastReadChapterSlug] = useState<string | null>(null);
+  const [lastReadPage, setLastReadPage] = useState(0);
+
+  // Real-time listener untuk reading progress
+  useEffect(() => {
+    if (!user?.uid || !slug) {
+      setReadChapters([]);
+      setLastReadChapterSlug(null);
+      setLastReadPage(0);
+      return;
+    }
+
+    const progressDocId = `${user.uid}_${slug}`;
+    const unsub = onSnapshot(
+      doc(db, "user_reading_progress", progressDocId),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const d = docSnap.data();
+          setReadChapters(d.readChapters || []);
+          setLastReadChapterSlug(d.chapterSlug || null);
+          setLastReadPage(d.page || 0);
+        } else {
+          setReadChapters([]);
+          setLastReadChapterSlug(null);
+          setLastReadPage(0);
+        }
+      },
+      () => {
+        // Error fallback
+        setReadChapters([]);
+        setLastReadChapterSlug(null);
+        setLastReadPage(0);
       }
-    }
-    setShowShareModal(true);
-  };
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const saveReadingMode = (mode: ReadingMode) => {
-    setReadingMode(mode);
-    localStorage.setItem(READING_MODE_KEY, mode);
-  };
-
-  /* ─── Derived data ─── */
-  const getChapterNumberValue = useCallback((chapter: ChapterItem): number => {
-    const num = chapter.chapter_number?.match(/(\d+(?:\.\d+)?)/);
-    if (num) return parseFloat(num[0]);
-    const lower = chapter.chapter_number?.toLowerCase() || "";
-    if (lower.includes("prologue")) return -2;
-    if (lower.includes("epilogue")) return 999999;
-    if (lower.includes("side")) return 999998;
-    if (lower.includes("extra")) return 999997;
-    if (lower.includes("special")) return 999996;
-    return 0;
-  }, []);
-
-  const filteredChapters = useMemo(() => {
-    if (!data) return [];
-    if (!chapterFilter.trim()) return data.chapters;
-    const q = chapterFilter.toLowerCase();
-    return data.chapters.filter(
-      (ch) =>
-        ch.chapter_number.toLowerCase().includes(q) ||
-        (ch.release_date && ch.release_date.toLowerCase().includes(q))
     );
-  }, [data, chapterFilter]);
 
-  const sortedChapters = useMemo(() => {
-    return [...filteredChapters].sort((a, b) => {
-      const aVal = getChapterNumberValue(a);
-      const bVal = getChapterNumberValue(b);
-      return chapterSort === "newest" ? bVal - aVal : aVal - bVal;
-    });
-  }, [filteredChapters, chapterSort, getChapterNumberValue]);
+    return () => unsub();
+  }, [user?.uid, slug]);
 
-  const latestChapter = useMemo(() => {
-    if (!data || data.chapters.length === 0) return null;
-    return [...data.chapters].sort(
-      (a, b) => getChapterNumberValue(b) - getChapterNumberValue(a)
-    )[0];
-  }, [data, getChapterNumberValue]);
+  /* ─── Mark Chapter as Read ─── */
+  const markChapterAsRead = useCallback(
+    async (chapterSlug: string) => {
+      if (!user?.uid || !slug) return;
 
-  const continueReadingChapter = lastReadChapter
-    ? data?.chapters.find((ch) => ch.slug === lastReadChapter) ?? null
-    : null;
+      const progressDocId = `${user.uid}_${slug}`;
+      const progressRef = doc(db, "user_reading_progress", progressDocId);
 
-  const displayTotalChapters = useMemo(() => {
-    if (!data) return 0;
-    if (data.total_chapters && data.total_chapters > 0) return data.total_chapters;
-    let maxChapter = 0;
-    data.chapters.forEach((ch) => {
-      const numMatch = ch.chapter_number?.match(/(\d+(?:\.\d+)?)/);
-      if (numMatch) {
-        const parsed = parseFloat(numMatch[0]);
-        if (parsed > maxChapter) maxChapter = parsed;
+      // Get current data
+      const currentSnap = await getDoc(progressRef);
+      const currentData = currentSnap.exists() ? currentSnap.data() : {};
+      const currentRead = currentData.readChapters || [];
+
+      if (currentRead.includes(chapterSlug)) {
+        // Already read, just update last read
+        await setDoc(
+          progressRef,
+          {
+            userId: user.uid,
+            slug,
+            chapterSlug,
+            chapterNumber:
+              data?.chapter_list?.find((c) => c.slug === chapterSlug)?.chapter_number || "",
+            page: 0,
+            readChapters: currentRead,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+        return;
       }
-    });
-    return maxChapter > 0 ? Math.floor(maxChapter) : data.chapters.length;
-  }, [data]);
 
-  const shownChapters = showAllChapters
-    ? sortedChapters
-    : sortedChapters.slice(0, 15);
+      // Add to read chapters
+      const newReadChapters = [...currentRead, chapterSlug];
 
-  const genres = useMemo(
-    () =>
-      (data?.genres || [])
-        .map((g) => (typeof g === "string" ? g : g.name))
-        .filter(Boolean),
-    [data]
+      await setDoc(
+        progressRef,
+        {
+          userId: user.uid,
+          slug,
+          chapterSlug,
+          chapterNumber:
+            data?.chapter_list?.find((c) => c.slug === chapterSlug)?.chapter_number || "",
+          page: 0,
+          readChapters: newReadChapters,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    },
+    [user?.uid, slug, data]
   );
 
-  const authors = data?.author ? [data.author] : data?.authors || [];
-  const artists = data?.artist ? [data.artist] : data?.artists || [];
+  /* ─── Save Reading Position (dari ChapterReader) ─── */
+  const saveReadingPosition = useCallback(
+    async (chapterSlug: string, page: number) => {
+      if (!user?.uid || !slug) return;
 
+      const progressDocId = `${user.uid}_${slug}`;
+      const progressRef = doc(db, "user_reading_progress", progressDocId);
+
+      const currentSnap = await getDoc(progressRef);
+      const currentData = currentSnap.exists() ? currentSnap.data() : {};
+      const currentRead = currentData.readChapters || [];
+
+      await setDoc(
+        progressRef,
+        {
+          userId: user.uid,
+          slug,
+          chapterSlug,
+          chapterNumber:
+            data?.chapter_list?.find((c) => c.slug === chapterSlug)?.chapter_number || "",
+          page,
+          readChapters: currentRead,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    },
+    [user?.uid, slug, data]
+  );
+
+  /* ─── Fetch manga data ─── */
+  useEffect(() => {
+    if (!slug) return;
+    let cancelled = false;
+
+    setLoading(true);
+    setError(null);
+
+    getDetail(slug)
+      .then((res) => {
+        if (cancelled) return;
+        if (!res?.data) {
+          setError("Data tidak ditemukan.");
+          setData(null);
+        } else {
+          setData(res.data);
+          setError(null);
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err?.message || "Terjadi kesalahan.");
+        setData(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  /* ─── Derived: chapters ─── */
+  const chapters = useMemo<Chapter[]>(() => {
+    if (!data?.chapter_list) return [];
+    return data.chapter_list.map((ch) => ({
+      slug: ch.slug,
+      chapter_number: ch.chapter_number,
+      release_date: ch.release_date,
+    }));
+  }, [data?.chapter_list]);
+
+  /* ─── Derived: sorted chapters ─── */
+  const sortedChapters = useMemo(() => {
+    return [...chapters].sort((a, b) => {
+      const numA = parseFloat(a.chapter_number.replace(/[^0-9.]/g, "")) || 0;
+      const numB = parseFloat(b.chapter_number.replace(/[^0-9.]/g, "")) || 0;
+      return numB - numA;
+    });
+  }, [chapters]);
+
+  /* ─── Chapter filter & sort ─── */
+  const [chapterFilter, setChapterFilter] = useState("");
+  const [chapterSort, setChapterSort] = useState<"newest" | "oldest">("newest");
+  const [showAllChapters, setShowAllChapters] = useState(false);
+
+  const filteredChapters = useMemo(() => {
+    let result = [...sortedChapters];
+    if (chapterFilter) {
+      const q = chapterFilter.toLowerCase();
+      result = result.filter((ch) => ch.chapter_number.toLowerCase().includes(q));
+    }
+    if (chapterSort === "oldest") {
+      result = result.reverse();
+    }
+    return result;
+  }, [sortedChapters, chapterFilter, chapterSort]);
+
+  const shownChapters = useMemo(() => {
+    if (showAllChapters) return filteredChapters;
+    return filteredChapters.slice(0, 20);
+  }, [filteredChapters, showAllChapters]);
+
+  /* ─── Continue Reading ─── */
+  const continueReadingChapter = useMemo(() => {
+    if (!lastReadChapterSlug) return null;
+    const ch = chapters.find((c) => c.slug === lastReadChapterSlug);
+    return ch || null;
+  }, [lastReadChapterSlug, chapters]);
+
+  /* ─── Latest Chapter ─── */
+  const latestChapter = useMemo(() => {
+    return sortedChapters[0] || null;
+  }, [sortedChapters]);
+
+  /* ─── Last Read Chapter (for "Terakhir" tag) ─── */
+  const lastReadChapter = useMemo(() => {
+    if (!lastReadChapterSlug) return null;
+    return chapters.find((c) => c.slug === lastReadChapterSlug) || null;
+  }, [lastReadChapterSlug, chapters]);
+
+  /* ─── UI State ─── */
+  const [activeTab, setActiveTab] = useState<"chapters" | "info" | "related">("chapters");
+  const [showSettings, setShowSettings] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [readingMode, setReadingMode] = useState<"vertical" | "horizontal">("vertical");
+  const [imageQuality, setImageQuality] = useState<"high" | "medium" | "low">("high");
+
+  const settingsRef = useRef<HTMLDivElement>(null);
+  const chapterListRef = useRef<HTMLDivElement>(null);
+
+  /* ─── Reading mode (localStorage — user preference, tetap) ─── */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = localStorage.getItem("reading_mode");
+    if (saved === "horizontal" || saved === "vertical") {
+      setReadingMode(saved);
+    }
+  }, []);
+
+  const saveReadingMode = useCallback((mode: "vertical" | "horizontal") => {
+    setReadingMode(mode);
+    localStorage.setItem("reading_mode", mode);
+  }, []);
+
+  /* ─── Image quality (localStorage — user preference, tetap) ─── */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = localStorage.getItem("image_quality");
+    if (saved === "high" || saved === "medium" || saved === "low") {
+      setImageQuality(saved);
+    }
+  }, []);
+
+  /* ─── Share ─── */
+  const handleShare = useCallback(() => {
+    setShowShareModal(true);
+  }, []);
+
+  const copyToClipboard = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      const textArea = document.createElement("textarea");
+      textArea.value = window.location.href;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, []);
+
+  /* ─── Navigation ─── */
+  const handleBack = useCallback(() => {
+    router.back();
+  }, [router]);
+
+  /* ─── Derived: authors, artists, genres ─── */
+  const authors = useMemo(() => {
+    if (!data?.author) return [];
+    return Array.isArray(data.author) ? data.author : [data.author];
+  }, [data?.author]);
+
+  const artists = useMemo(() => {
+    if (!data?.artist) return [];
+    return Array.isArray(data.artist) ? data.artist : [data.artist];
+  }, [data?.artist]);
+
+  const genres = useMemo(() => {
+    if (!data?.genre) return [];
+    return Array.isArray(data.genre) ? data.genre : [data.genre];
+  }, [data?.genre]);
+
+  const displayTotalChapters = useMemo(() => {
+    return data?.chapter_list?.length || 0;
+  }, [data?.chapter_list]);
+
+  /* ─── Click outside settings ─── */
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
+        setShowSettings(false);
+      }
+    }
+    if (showSettings) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showSettings]);
+
+  /* ─── Return ─── */
   return {
-    // Params
-    slug,
     // Data
+    slug,
     data,
     loading,
     error,
-    // User
+
+    // Auth
     user,
+
+    // Bookmark & Like
     isBookmarked,
     isLiked,
-    setIsLiked,
-    // UI toggles
-    activeTab,
-    setActiveTab,
-    showFullSynopsis,
-    setShowFullSynopsis,
-    showAllChapters,
-    setShowAllChapters,
-    showShareModal,
-    setShowShareModal,
-    showSettings,
-    setShowSettings,
-    showNotification,
-    setShowNotification,
-    copied,
-    // Settings
-    readingMode,
-    saveReadingMode,
-    imageQuality,
-    setImageQuality,
-    // Chapter state
+    toggleBookmark,
+    toggleLike,
+
+    // Chapters
+    chapters,
+    sortedChapters,
+    shownChapters,
+    filteredChapters,
     readChapters,
+    continueReadingChapter,
+    latestChapter,
     lastReadChapter,
+    displayTotalChapters,
+
+    // Chapter controls
     chapterFilter,
     setChapterFilter,
     chapterSort,
     setChapterSort,
+    showAllChapters,
+    setShowAllChapters,
+    markChapterAsRead,
+
+    // Reading Progress (NEW — untuk ChapterReader)
+    saveReadingPosition,
+    lastReadPage,
+
+    // Tabs
+    activeTab,
+    setActiveTab,
+
+    // Settings
+    showSettings,
+    setShowSettings,
+    settingsRef,
+    readingMode,
+    saveReadingMode,
+    imageQuality,
+    setImageQuality,
+
+    // Share
+    showShareModal,
+    setShowShareModal,
+    handleShare,
+    copied,
+    copyToClipboard,
+
+    // Notification
+    showNotification,
+    setShowNotification,
+
+    // Navigation
+    handleBack,
+
     // Derived
-    sortedChapters,
-    shownChapters,
-    latestChapter,
-    continueReadingChapter,
-    displayTotalChapters,
-    genres,
     authors,
     artists,
+    genres,
+
     // Refs
-    settingsRef,
     chapterListRef,
-    // Actions
-    markChapterAsRead,
-    toggleBookmark,
-    handleBack,
-    handleShare,
-    copyToClipboard,
   };
 }

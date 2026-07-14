@@ -279,7 +279,7 @@ export function MangaDetail() {
               sortedChapters={hook.sortedChapters}
               totalChapters={hook.displayTotalChapters}
               readChapters={hook.readChapters}
-              lastReadChapter={hook.lastReadChapter}
+                lastReadChapter={hook.lastReadChapter?.slug || null}
               chapterFilter={hook.chapterFilter}
               chapterSort={hook.chapterSort}
               showAll={hook.showAllChapters}

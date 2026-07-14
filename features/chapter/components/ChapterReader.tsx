@@ -2,7 +2,7 @@
 // features/chapter/components/ChapterReader.tsx
 // Main reader orchestrator. Composes all reader sub-components.
 
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ChevronLeft, ChevronRight, MessageCircle, Send, ImageIcon, X, AlertTriangle as ReportIcon, BookOpen } from "lucide-react";
 import { useAccent } from "@/lib/accent";
@@ -11,10 +11,10 @@ import {
   doc, setDoc, collection, addDoc, query, where, orderBy,
   onSnapshot, updateDoc, serverTimestamp, deleteDoc,
 } from "firebase/firestore";
-import { useEffect } from "react";
 import { useReader } from "@/features/chapter/hooks/useReader";
 import { useReadingHistory, useAuthUser } from "@/features/chapter/hooks/useReadingHistory";
 import { useKeyboardControl } from "@/features/chapter/hooks/useKeyboardControl";
+import { useReadingProgress } from "@/features/manga/hooks/useReadingProgress"; // Hook baru
 import { getDetail } from "@/lib/api";
 import { ReaderToolbar } from "./ReaderToolbar";
 import { PageViewer } from "./PageViewer";
@@ -34,8 +34,6 @@ import { fixUrl } from "@/features/chapter/utils/reader.utils";
 function cn(...c: (string | false | null | undefined)[]) {
   return c.filter(Boolean).join(" ");
 }
-
-const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
 
 export function ChapterReader() {
   const router = useRouter();
@@ -59,8 +57,33 @@ export function ChapterReader() {
     return () => { cancelled = true; };
   }, [reader.data?.series_slug]);
 
-  // Save reading history
+  // Save reading history (existing)
   useReadingHistory({ chapterSlug: reader.chapterSlug, data: reader.data, detailData, user });
+
+  // ═══════════════════════════════════════════════════
+  // FIREBASE: READING PROGRESS DENGAN DEBOUNCE
+  // ═══════════════════════════════════════════════════
+  const { saveProgress } = useReadingProgress(reader.data?.series_slug || "");
+
+  useEffect(() => {
+    if (!reader.chapterSlug || !reader.data?.series_slug) return;
+
+    const timeoutId = setTimeout(() => {
+      saveProgress(
+        reader.chapterSlug,
+        reader.page,
+        reader.data?.chapter_number || ""
+      );
+    }, 1000); // 1s debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    reader.chapterSlug,
+    reader.page,
+    reader.data?.series_slug,
+    reader.data?.chapter_number,
+    saveProgress,
+  ]);
 
   // Keyboard navigation
   useKeyboardControl({
@@ -98,18 +121,43 @@ export function ChapterReader() {
 
   const clearCommentImage = () => setCommentImage(null);
 
-  const uploadToImgBB = async (file: File) => {
-    if (!IMGBB_API_KEY) { alert("Konfigurasi upload gambar tidak tersedia."); return; }
+  // ═══════════════════════════════════════════════════
+  // UPLOAD GAMBAR KOMENTAR — IMAGEKIT VIA API ROUTE
+  // ═══════════════════════════════════════════════════
+  const uploadCommentImage = async (file: File) => {
+    if (!file.type.startsWith("image/")) { alert("File harus gambar."); return; }
+    if (file.size > 5 * 1024 * 1024) { alert("Maksimal 5MB."); return; }
+    
     setIsUploadingImage(true);
+    const fileName = `comment_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
+    
     const formData = new FormData();
-    formData.append("image", file);
+    formData.append("file", file);
+    formData.append("fileName", fileName);
+
     try {
-      const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData });
-      const d = await res.json();
-      if (d.success) setCommentImage(d.data.url);
-      else alert("Gagal upload gambar.");
-    } catch { alert("Error upload."); }
-    finally { setIsUploadingImage(false); }
+      const res = await fetch("/api/upload-imagekit", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Upload failed");
+      }
+
+      const data = await res.json();
+      if (data.url) {
+        setCommentImage(data.url);
+      } else {
+        throw new Error("No URL returned");
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      alert("Gagal upload gambar.");
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
   const handleSubmitComment = async (e: React.FormEvent) => {
@@ -314,7 +362,7 @@ export function ChapterReader() {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={user.photoURL || "/no-avatar.png"} alt="Me" className="w-9 h-9 rounded-full bg-gray-800 object-cover shrink-0 ring-1 ring-white/5" />
                     <div className="flex-1 relative bg-white/[0.03] border border-white/[0.06] rounded-2xl flex items-end min-h-[48px] overflow-hidden focus-within:border-white/10 transition-colors">
-                      <input type="file" id="imgUploadMain" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && uploadToImgBB(e.target.files[0])} />
+                      <input type="file" id="imgUploadMain" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && uploadCommentImage(e.target.files[0])} />
                       <label htmlFor="imgUploadMain" className="p-3 text-gray-500 hover:text-gray-300 cursor-pointer transition-colors shrink-0">
                         <ImageIcon className="w-5 h-5" />
                       </label>
@@ -437,7 +485,7 @@ export function ChapterReader() {
         onEdit={handleEdit}
         onDelete={(id) => setDeleteConfirmId(id)}
         onTextChange={setCommentText}
-        onImageUpload={uploadToImgBB}
+        onImageUpload={uploadCommentImage}
         onClearReply={() => { setReplyTo(null); setEditCommentId(null); setCommentText(""); setCommentImage(null); }}
         onImageClear={() => setCommentImage(null)}
         commentInputRef={commentInputRef}
