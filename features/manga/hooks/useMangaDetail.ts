@@ -10,7 +10,6 @@ import {
   setDoc,
   deleteDoc,
   serverTimestamp,
-  arrayUnion,
 } from "firebase/firestore";
 import type { User as FirebaseUser } from "firebase/auth";
 import type { MangaDetail as MangaDetailType } from "@/features/manga/types";
@@ -182,7 +181,13 @@ export function useMangaDetail() {
     return () => unsub();
   }, [user?.uid, slug]);
 
-  /* ─── Mark Chapter as Read ─── */
+  /* ─── Mark Chapter as Opened ───
+     Dipanggil pas user KLIK buat buka chapter (dari list / tombol lanjutkan).
+     Ini CUMA nyatet chapter yang lagi dibuka (buat badge "Terakhir" & posisi
+     lanjutkan baca) — BUKAN tanda udah selesai dibaca. Status "Selesai"
+     (readChapters) cuma boleh diisi dari ChapterReader, pas user beneran
+     nyampe halaman/scroll terakhir chapter itu. Jangan tambahin arrayUnion
+     ke readChapters di sini lagi, biar gak "Selesai" duluan sebelum dibaca. */
   const markChapterAsRead = useCallback(
     async (chapterSlug: string) => {
       if (!user?.uid || !slug) return;
@@ -191,29 +196,7 @@ export function useMangaDetail() {
       await setDoc(
         progressRef,
         {
-          readChapters: arrayUnion(chapterSlug),
           lastReadChapter: chapterSlug,
-          lastReadPage: 0,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-    },
-    [user?.uid, slug]
-  );
-
-  /* ─── Save Reading Position (dari ChapterReader) ─── */
-  const saveReadingPosition = useCallback(
-    async (chapterSlug: string, page: number) => {
-      if (!user?.uid || !slug) return;
-
-      const progressRef = doc(db, "users", user.uid, "reading_progress", slug);
-      await setDoc(
-        progressRef,
-        {
-          readChapters: arrayUnion(chapterSlug),
-          lastReadChapter: chapterSlug,
-          lastReadPage: page,
           updatedAt: serverTimestamp(),
         },
         { merge: true }
@@ -237,7 +220,7 @@ export function useMangaDetail() {
           setError("Data tidak ditemukan.");
           setData(null);
         } else {
-          setData(res.data);
+          setData(res.data as MangaDetailType);
           setError(null);
         }
       })
@@ -444,8 +427,7 @@ export function useMangaDetail() {
     setShowAllChapters,
     markChapterAsRead,
 
-    // Reading Progress (NEW — untuk ChapterReader)
-    saveReadingPosition,
+    // Reading Progress
     lastReadPage,
 
     // Tabs

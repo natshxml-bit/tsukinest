@@ -68,13 +68,20 @@ export function ChapterReader() {
   useEffect(() => {
     if (!reader.chapterSlug || !reader.data?.series_slug) return;
 
+    const totalPages = reader.data?.images.length ?? 0;
+    const isCompleted =
+      reader.mode === "horizontal"
+        ? reader.page >= totalPages - 1
+        : reader.scrollProgress >= 95;
+
     const timeoutId = setTimeout(() => {
       saveProgress(
         reader.chapterSlug,
         reader.page,
-        reader.data?.chapter_number || ""
+        String(reader.data?.chapter_number ?? ""),
+        isCompleted
       );
-    }, 1000); // 1s debounce
+    }, 1000);
 
     return () => clearTimeout(timeoutId);
   }, [
@@ -82,6 +89,9 @@ export function ChapterReader() {
     reader.page,
     reader.data?.series_slug,
     reader.data?.chapter_number,
+    reader.data?.images.length,
+    reader.mode,
+    reader.scrollProgress,
     saveProgress,
   ]);
 
