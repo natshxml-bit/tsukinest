@@ -42,7 +42,12 @@ export function useReader() {
   useEffect(() => {
     const onScroll = () => {
       const total = document.documentElement.scrollHeight - window.innerHeight;
-      setScrollProgress(total > 0 ? Math.min(100, (window.scrollY / total) * 100) : 0);
+      // FIX: kalau total <= 0, berarti seluruh chapter (gambar dikit) udah
+      // muat di layar tanpa perlu discroll sama sekali — itu artinya udah
+      // "kebaca semua", bukan 0%. Sebelumnya di-fallback ke 0, jadi chapter
+      // pendek gak akan PERNAH nyampe scrollProgress >= 95 → gak pernah
+      // ke-mark "Selesai" walau udah beneran dibaca.
+      setScrollProgress(total > 0 ? Math.min(100, (window.scrollY / total) * 100) : 100);
     };
     window.scrollTo(0, 0);
     window.addEventListener("scroll", onScroll, { passive: true });

@@ -64,6 +64,9 @@ export function ChapterReader() {
   // FIREBASE: READING PROGRESS DENGAN DEBOUNCE
   // ═══════════════════════════════════════════════════
   const { saveProgress } = useReadingProgress(reader.data?.series_slug || "");
+  // Chapter yang isCompleted-nya udah pernah keflush ke Firestore, biar gak
+  // spam saveProgress tiap tick scroll begitu udah >=95%.
+  const savedCompletedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!reader.chapterSlug || !reader.data?.series_slug) return;
@@ -74,13 +77,33 @@ export function ChapterReader() {
         ? reader.page >= totalPages - 1
         : reader.scrollProgress >= 95;
 
-    const timeoutId = setTimeout(() => {
+    // FIX: penanda "Selesai" HARUS langsung diflush begitu isCompleted true,
+    // JANGAN didebounce. Sebelumnya ini ikut nunggu 1000ms di dalem setTimeout
+    // yang sama, dan kalau user langsung pindah chapter (tap "Selanjutnya")
+    // sebelum 1 detik itu lewat, cleanup di bawah bakal clearTimeout duluan
+    // → saveProgress(..., isCompleted=true) GA PERNAH kepanggil sama sekali.
+    // Itu penyebab beberapa chapter random gak ke-mark "Selesai".
+    if (isCompleted && !savedCompletedRef.current.has(reader.chapterSlug)) {
+      savedCompletedRef.current.add(reader.chapterSlug);
       saveProgress(
         reader.chapterSlug,
         reader.page,
         String(reader.data?.chapter_number ?? ""),
-        isCompleted
+        true
       );
+    }
+
+    // lastReadChapter/lastReadPage (buat "Lanjutkan Baca") boleh tetep
+    // didebounce — gak masalah kalau kebatalin/telat, bukan data kritis.
+    const timeoutId = setTimeout(() => {
+      if (!isCompleted) {
+        saveProgress(
+          reader.chapterSlug,
+          reader.page,
+          String(reader.data?.chapter_number ?? ""),
+          false
+        );
+      }
     }, 1000);
 
     return () => clearTimeout(timeoutId);
