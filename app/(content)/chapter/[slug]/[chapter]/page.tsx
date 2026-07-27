@@ -1,16 +1,18 @@
 // app/(content)/chapter/[slug]/[chapter]/page.tsx
-// Server Component entry point for the chapter reader.
-//
-// URL params:
-//   [slug]    = series slug  (e.g. "solo-leveling")
-//   [chapter] = chapter slug (e.g. "solo-leveling-chapter-1") — passed to getRead() API
-
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { ChapterReader } from "@/features/chapter/components/ChapterReader";
 
 interface Props {
   params: Promise<{ slug: string; chapter: string }>;
 }
+
+export const viewport: Viewport = {
+  themeColor: "#000000",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, chapter } = await params;
