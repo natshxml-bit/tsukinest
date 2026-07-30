@@ -323,8 +323,8 @@ export function ChapterReader() {
           <div className="relative z-20 w-full max-w-2xl mx-auto px-5 mt-12 space-y-8 pb-12">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => reader.handleNavigation(data.prev_chapter?.id)}
-                disabled={!data.prev_chapter}
+  onClick={() => reader.handleNavigation(data.prev_chapter)}
+  disabled={!data.prev_chapter}
                 className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-white/[0.03] hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed rounded-xl text-sm font-semibold text-gray-300 border border-white/[0.04] transition-all active:scale-[0.98]"
               >
                 <ChevronLeft className="w-4 h-4" /> Sebelumnya
