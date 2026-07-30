@@ -19,12 +19,16 @@ export interface ReadChapterRef {
 }
 
 export interface ReadData {
+  manga_id?: string;
+
   title: string;
   chapter_number: string | number;
   series_title: string;
   series_slug: string;
+
   prev_chapter: string | null;
   next_chapter: string | null;
+
   images: ChapterImage[];
   chapters: ReadChapterRef[];
 }

@@ -49,7 +49,7 @@ export function ChapterReader() {
 
   // Fetch series detail for history thumb/type
   useEffect(() => {
-    if (!reader.data?.series_slug) return;
+    if (!reader.data?.manga_id) return;
     let cancelled = false;
     getDetail(reader.data.manga_id)
       .then((res) => { if (!cancelled) setDetailData(res?.data || null); })
