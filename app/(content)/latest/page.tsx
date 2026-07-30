@@ -8,31 +8,6 @@ import { ArrowLeft, Star, Clock, ChevronLeft, ChevronRight, ImageIcon } from "lu
 import { useAccent } from "@/lib/accent";
 import { cn } from "@/utils/cn";
 import { API_BASE_URL } from "@/constants/api";
-import { formatMangaType } fromKode untuk `LatestPage` ini sudah cukup rapi dan sejalan dengan halaman lainnya. Konsep *data fetching* di *client-side* menggunakan `useEffect`, serta penggunaan *Promise unwrapping* `use(searchParams)` untuk Next.js 15+ juga sudah tepat.
-
-Namun, untuk mencegahKode ini sudah terlihat sangat rapi, menggunakan App Router Next.js 15+ (terlihat dari penggunaan `use(searchParams)` pada Client Component), dan UI yang sangat modern.
-
-Namun, untuk halaman yang berbasis Pagination (halaman Next/Prev) dan Client-Side Fetching (`useEffect`), ada **dua celah penting** yang harus ditambal agar aplikasinya lebih *bulletproof*:
-
-### 1. *Race Condition* pada Pagination (Penting!)
-Jika user mengklik tombol "Next" berkali-kali dengan cepat sebelum datanya selesai dimuat, *request* yang lebih lama mungkin selesai belakangan dan menimpa *request* terbaru. Kita butuh `AbortController` di dalam `useEffect` untuk membatalkan request sebelumnya.
-
-### 2. Tombol Pagination Disabled
-Saat ini, jika *Prev* di disable, link-nya mengarah ke `#`: `href={currentPage > 1 ? ... : "#"}`. Jika diklik, hal ini akan menambahkan `#` ke URL atau menggulir layar ke atas secara tidak terduga. Kita perlu menambahkan `pointer-events-none` agar benar-benar tidak bisa diklik.
-
-Berikut adalah versi kode yang sudah dioptimasi:
-
-```tsx
-"use client";
-
-import { useEffect, useState, use } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Star, Clock, ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
-
-import { useAccent } from "@/lib/accent";
-import { cn } from "@/utils/cn";
-import { API_BASE_URL } from "@/constants/api";
 import { formatMangaType } from "@/utils/manga";
 import SmartImage from "@/components/ui/SmartImage";
 import { SkeletonCardGrid } from "@/components/ui/SkeletonCard";
@@ -54,14 +29,6 @@ function extractType(item: Record<string, unknown>): string {
   if (countryId === "CN") return "MANHUA";
   if (countryId === "JP") return "MANGA";
   return (typeof item.type === "string" ? item.type : "MANHWA").toUpperCase();
-}
-
-function getFlagCode(type: string): string | null {
-  const t = type.toLowerCase();
-  if (t === "manhwa") return "kr";
-  if (t === "manhua") return "cn";
-  if (t === "manga") return "jp";
-  return null;
 }
 
 function transformItem(item: Record<string, unknown>): MangaItem {
@@ -114,34 +81,36 @@ function MangaCard({
   item: MangaItem;
   accentStyle: { bg: string; text: string };
 }) {
-  const flagCode = getFlagCode(item.type);
   const displayType = formatMangaType(item.type);
   const cleanTitle = (item.title || "").replace(/subtitle indonesia/i, "").trim();
 
   return (
-    <Link className="block h-full active:scale-95 transition-transform duration-150 transform-gpu group" href="{`/manga/${item.slug}`}">
+    <Link
+      href={`/manga/${item.slug}`}
+      className="block h-full active:scale-95 transition-transform duration-150 transform-gpu group"
+    >
       <div className="flex flex-col h-full">
         <div className="relative overflow-hidden rounded-xl bg-[#141414] aspect-[2/3] mb-2 border border-white/[0.04] transform-gpu">
-          <SmartImage "/no-image.png"} alt="{cleanTitle}" className="object-cover transition-transform duration-500 group-hover:scale-105 will-change-transform" decoding="async" fill loading="lazy" sizes="(max-width: 768px) 50vw, 33vw" src="{item.thumb" title="{cleanTitle}" ||/>
+          <SmartImage
+            src={item.thumb || "/no-image.png"}
+            alt={cleanTitle}
+            title={cleanTitle}
+            fill
+            loading="lazy"
+            decoding="async"
+            className="object-cover transition-transform duration-500 group-hover:scale-105 will-change-transform"
+            sizes="(max-width: 768px) 50vw, 33vw"
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
 
-          {/* Badge + Flag */}
+          {/* Badge (Tanpa Icon Gambar Flag) */}
           <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1 pointer-events-none z-10">
             <span className="px-1.5 py-[2px] rounded-md text-[8px] font-bold text-white/90 uppercase bg-black/70 border border-white/10 tracking-wide flex items-center gap-1 max-w-[60%]">
-              {flagCode && (
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`[https://flagcdn.com/w16/$](https://flagcdn.com/w16/$){flagCode}.png`}
-                  alt={`${displayType} flag`}
-                  className="w-3 h-2 rounded-[1px] object-cover shrink-0"
-                  loading="lazy"
-                />
-              )}
               <span className="truncate">{displayType}</span>
             </span>
             {item.rating && item.rating !== "0" && item.rating !== "?" && (
               <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-black/80 shrink-0">
-                <Star className="w-2.5 h-2.5 text-yellow-400 fill-yellow-400"/>
+                <Star className="w-2.5 h-2.5 text-yellow-400 fill-yellow-400" />
                 <span className="text-[10px] font-bold text-white/90">
                   {item.rating}
                 </span>
@@ -152,7 +121,7 @@ function MangaCard({
           {/* Latest Chapter + NEW badge */}
           <div className="absolute bottom-2 left-2 right-2 flex items-end justify-between gap-1 pointer-events-none z-10">
             <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/80 min-w-0">
-              <Clock className="w-2.5 h-2.5 text-neutral-400 shrink-0"/>
+              <Clock className="w-2.5 h-2.5 text-neutral-400 shrink-0" />
               <span className="text-[10px] font-medium text-white/90 truncate">
                 {item.latest_chapter || "Ch. ?"}
               </span>
@@ -195,12 +164,10 @@ export default function LatestPage({
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    // Scroll to top setiap kali halaman berganti
     window.scrollTo({ top: 0, behavior: "smooth" });
     setLoading(true);
     setError(false);
 
-    // Mencegah Race Condition jika user menekan tombol next/prev berkali-kali secara cepat
     const controller = new AbortController();
 
     fetch(`${API_BASE_URL}/filter?order=latest&page=${currentPage}`, {
@@ -226,15 +193,12 @@ export default function LatestPage({
         setLoading(false);
       })
       .catch((err) => {
-        // Jika dibatalkan oleh AbortController, jangan set error (karena wajar)
         if (err.name === "AbortError") return;
-        
         console.error("Gagal ambil data latest", err);
         setError(true);
         setLoading(false);
       });
 
-    // Cleanup function untuk membatalkan fetch jika komponen unmount atau currentPage berubah
     return () => controller.abort();
   }, [currentPage]);
 
@@ -247,7 +211,7 @@ export default function LatestPage({
               onClick={() => router.back()}
               className="w-9 h-9 flex items-center justify-center rounded-full bg-white/5 border border-white/5 hover:bg-white/10 active:scale-95 transition-all"
             >
-              <ArrowLeft className="w-5 h-5 text-neutral-300"/>
+              <ArrowLeft className="w-5 h-5 text-neutral-300" />
             </button>
             <div className="flex items-center gap-2">
               <div
@@ -256,7 +220,7 @@ export default function LatestPage({
                   accentStyle.bg
                 )}
               >
-                <Clock className="w-4 h-4 text-white"/>
+                <Clock className="w-4 h-4 text-white" />
               </div>
               <h1 className="text-base font-extrabold text-white tracking-tight">
                 Episode Terbaru
@@ -306,15 +270,19 @@ export default function LatestPage({
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
             {loading ? (
               Array.from({ length: 9 }).map((_, i) => (
-                <SkeletonCardGrid key="{i}"/>
+                <SkeletonCardGrid key={i} />
               ))
             ) : comics.length > 0 ? (
               comics.map((item, i) => (
-                <MangaCard accentStyle="{accentStyle}" item="{item}" key="{`${item.slug}-${i}`}"/>
+                <MangaCard
+                  key={`${item.slug}-${i}`}
+                  item={item}
+                  accentStyle={accentStyle}
+                />
               ))
             ) : (
               <div className="col-span-2 md:col-span-3 flex flex-col items-center py-20 text-neutral-500">
-                <ImageIcon className="w-12 h-12 mb-3 opacity-20"/>
+                <ImageIcon className="w-12 h-12 mb-3 opacity-20" />
                 <p className="text-sm font-medium">Belum ada update terbaru.</p>
               </div>
             )}
@@ -323,17 +291,17 @@ export default function LatestPage({
 
         {!loading && !error && comics.length > 0 && (
           <div className="flex justify-between items-center mt-10 mb-6 bg-[#141414] p-2 rounded-2xl border border-white/[0.05]">
-            <Link href="{currentPage"> 1 ? `/latest?page=${currentPage - 1}` : "#"}
+            <Link
+              href={currentPage > 1 ? `/latest?page=${currentPage - 1}` : "#"}
               className={cn(
                 "flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all",
                 currentPage > 1
                   ? "bg-white/5 text-neutral-300 hover:bg-white/10 active:scale-95 border border-white/[0.05]"
-                  : "text-neutral-600 opacity-50 cursor-not-allowed pointer-events-none" // <-- Fix disabled state
+                  : "text-neutral-600 opacity-50 cursor-not-allowed pointer-events-none"
               )}
             >
-              <ChevronLeft className="w-4 h-4"/> Prev
+              <ChevronLeft className="w-4 h-4" /> Prev
             </Link>
-            
             <div className="flex flex-col items-center">
               <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
                 Halaman
@@ -342,9 +310,16 @@ export default function LatestPage({
                 {currentPage}
               </span>
             </div>
-
-            <Link "#"} "bg-white/5 "flex "text-white )} + // 1}` : <-- ? Fix `/latest?page="${currentPage" active:scale-95") border border-white/[0.05] className="{cn(" cn(accentStyle.bg, cursor-not-allowed disabled font-bold gap-2 hasNext href="{hasNext" items-center opacity-50 pointer-events-none" px-4 py-3 rounded-xl state text-neutral-600 text-sm transition-all",>
-              Next <ChevronRight className="w-4 h-4"/>
+            <Link
+              href={hasNext ? `/latest?page=${currentPage + 1}` : "#"}
+              className={cn(
+                "flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all",
+                hasNext
+                  ? cn(accentStyle.bg, "text-white active:scale-95")
+                  : "bg-white/5 text-neutral-600 opacity-50 cursor-not-allowed pointer-events-none border border-white/[0.05]"
+              )}
+            >
+              Next <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
         )}
