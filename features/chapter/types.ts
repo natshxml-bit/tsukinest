@@ -18,17 +18,18 @@ export interface ReadChapterRef {
   url?: string;
 }
 
-export interface ReadData {
-  title: string;
-  chapter_number: string | number;
-  series_title: string;
-  series_slug: string;
-  manga_id?: string;
-  prev_chapter: string | null;
-  next_chapter: string | null;
-  images: ChapterImage[];
-  chapters: ReadChapterRef[];
-}
+  export interface ReadData {
+    title: string;
+    chapter_number: string | number;
+    series_title: string;
+    series_slug: string;
+    manga_id?: string;
+   thumbnail_image_url?: string;
+    prev_chapter: string | null;
+    next_chapter: string | null;
+    images: ChapterImage[];
+    chapters: ReadChapterRef[];
+  }
 
 export interface Comment {
   id: string;
