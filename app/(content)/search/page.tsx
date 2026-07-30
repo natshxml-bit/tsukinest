@@ -22,13 +22,50 @@ import SmartImage from "@/components/ui/SmartImage";
 import { SkeletonCardGrid } from "@/components/ui/SkeletonCard";
 
 function transformItem(item: Record<string, unknown>): MangaItem {
+  // FIX: Type label — API kadang ngirim `type: "manhwa"` dari country_id,
+  // tapi lebih akurat pake `taxonomy.Format[0].name` atau fallback ke
+  // `country_id` kalau Format kosong.
+  // Sumber prioritas: taxonomy.Format > country_id > item.type
+  let detectedType = "MANHWA";
+  const tax = item.taxonomy as Record<string, Array<{ name?: string; slug?: string }>> | undefined;
+  const fmt = tax?.Format?.[0]?.name;
+  if (fmt && typeof fmt === "string") {
+    detectedType = fmt.toUpperCase();
+  } else if (item.country_id === "JP") {
+    detectedType = "MANGA";
+  } else if (item.country_id === "CN") {
+    detectedType = "MANHUA";
+  } else if (item.country_id === "KR") {
+    detectedType = "MANHWA";
+  } else if (typeof item.type === "string" && item.type) {
+    detectedType = item.type.toUpperCase();
+  }
+
+  // FIX: latest_chapter — API search ngirim field `latest_chapter_number`
+  // (number, bukan string) yg gak pernah di-handle. Sebelumnya fallback
+  // ke "Ch. ?" karena typeof check cuma nerima string.
+  let chapterLabel = "Ch. ?";
+  const lc = item.latest_chapter;
+  const lcNum = item.latest_chapter_number;
+  if (typeof lc === "string" && lc) {
+    chapterLabel = lc;
+  } else if (typeof lc === "number" && lc > 0) {
+    chapterLabel = `Ch. ${lc}`;
+  } else if (typeof lcNum === "number" && lcNum > 0) {
+    chapterLabel = `Ch. ${lcNum}`;
+  } else if (typeof lcNum === "string" && lcNum) {
+    chapterLabel = `Ch. ${lcNum}`;
+  } else if (typeof item.chapter === "string" && item.chapter) {
+    chapterLabel = item.chapter;
+  }
+
   return {
     title: typeof item.title === "string" ? item.title : "Untitled",
     slug: typeof item.slug === "string" ? item.slug : typeof item.manga_id === "string" ? item.manga_id : "",
     thumb: cleanThumb(typeof item.thumb === "string" ? item.thumb : typeof item.cover_image_url === "string" ? item.cover_image_url : ""),
-    type: (typeof item.type === "string" ? item.type : "MANHWA").toUpperCase(),
-    latest_chapter: typeof item.chapter === "string" ? item.chapter : typeof item.latest_chapter === "string" ? item.latest_chapter : "Ch. ?",
-    rating: item.rating ? String(item.rating) : "0",
+    type: detectedType,
+    latest_chapter: chapterLabel,
+    rating: item.rating ? String(item.rating) : (item.user_rate ? String(item.user_rate) : "0"),
     link: typeof item.link === "string" ? item.link : "",
     is_colored: false,
     is_hot: false,
