@@ -11,6 +11,7 @@ import { AppProvider } from "@/providers/AppProvider";
 import BackButtonHandler from "@/components/BackButtonHandler";
 import SplashScreenHandler from "@/components/SplashScreenHandler";
 import PresenceTracker from "@/components/PresenceTracker";
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -119,7 +120,7 @@ export default function RootLayout({
   return (
     <html lang="id" className={`${inter.variable}`}>
       <body
-        className={`${inter.className} bg-zinc-950 text-white antialiased flex flex-col min-h-screen items-center`}
+        className={`${inter.className} bg-zinc-950 text-white antialiased flex flex-col min-h-screen items.center`}
       >
         <AppProvider>
           <div className="w-full max-w-md min-h-screen bg-black relative shadow-2xl flex flex-col overflow-x-hidden border-x border-zinc-900">
@@ -162,6 +163,9 @@ export default function RootLayout({
 
             {/* PWA Install Popup */}
             <InstallPrompt />
+
+            {/* Vercel Analytics */}
+            <Analytics />
 
           </div>
         </AppProvider>
