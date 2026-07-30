@@ -89,6 +89,26 @@ const nextConfig: NextConfig = {
             key: "X-Frame-Options",
             value: "DENY",
           },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: blob: https://assets.shngm.id https://res.cloudinary.com https://kacu.gmbr.pro http://kacu.gmbr.pro https://via.placeholder.com",
+              "font-src 'self' data:",
+              "connect-src 'self' https://tsukinest.my.id https://challenges.cloudflare.com",
+              "frame-src 'self' https://challenges.cloudflare.com",
+            ].join("; "),
+          },
         ],
       },
     ];
