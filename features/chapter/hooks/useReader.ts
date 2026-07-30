@@ -101,22 +101,21 @@ export function useReader() {
 
         if (!cancelled) {
           setData({
-            title: ch.title || `Chapter ${chapNum}`,
-            chapter_number: chapNum,
-            series_title: chapTitle,
-            series_slug: chapSeriesSlug,
-            prev_chapter: prev,
-            next_chapter: next,
-            // FIX: Tambahkan data _id ke state agar bisa diakses oleh fungsi navigasi
-            prev_chapter_id: ch.prev_chapter_id || null,
-            next_chapter_id: ch.next_chapter_id || null,
-            images,
-            chapters: uniqueChapters,
-          });
-          setPage(0);
-          setBrokenImages(new Set());
-          setImgLoaded(false);
-          setTimeout(() => window.scrollTo(0, 0), 100);
+  title: ch.title || `Chapter ${chapNum}`,
+  chapter_number: chapNum,
+  series_title: chapTitle,
+  series_slug: chapSeriesSlug,
+  prev_chapter: prev,
+  next_chapter: next,
+  images,
+  chapters: uniqueChapters,
+});
+
+setPage(0);
+setBrokenImages(new Set());
+setImgLoaded(false);
+
+setTimeout(() => window.scrollTo(0, 0), 100);
         }
       } catch {
         // data stays null → error state rendered
