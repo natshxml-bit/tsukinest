@@ -51,7 +51,7 @@ export function ChapterReader() {
   useEffect(() => {
     if (!reader.data?.series_slug) return;
     let cancelled = false;
-    getDetail(reader.data.series_slug)
+    getDetail(reader.data.manga_id)
       .then((res) => { if (!cancelled) setDetailData(res?.data || null); })
       .catch(() => {});
     return () => { cancelled = true; };

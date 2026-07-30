@@ -48,22 +48,36 @@ export function useReadingHistory({
           ? String(data.chapter_number)
           : `Ch. ${data.chapter_number}`;
         await setDoc(
-          ref,
-          {
-            id,
-            slug: data.series_slug || chapterSlug,
-            chapter_slug: chapterSlug,
-            title: data.series_title || data.title,
-            lastReadChapter: chStr,
-            latest_chapter: chStr,
-            savedAt: Date.now(),
-            lastReadAt: Date.now(),
-            thumb: detailData?.thumbnail || detailData?.thumb || "",
-            type: detailData?.type || "MANGA",
-            status: detailData?.status || "",
-          },
-          { merge: true }
-        );
+  ref,
+  {
+    id,
+    slug: data.series_slug || data.manga_id || chapterSlug,
+    chapter_slug: chapterSlug,
+
+    title:
+      detailData?.title ||
+      data.series_title ||
+      data.title ||
+      "Unknown",
+
+    lastReadChapter: chStr,
+    latest_chapter: chStr,
+
+    savedAt: Date.now(),
+    lastReadAt: Date.now(),
+
+    thumb:
+      detailData?.cover_image_url ||
+      detailData?.thumbnail ||
+      detailData?.thumb ||
+      data.thumbnail_image_url ||
+      "",
+
+    type: detailData?.type || "MANGA",
+    status: detailData?.status || "",
+  },
+  { merge: true }
+);
       } catch {
         // non-critical, silent fail
       }
