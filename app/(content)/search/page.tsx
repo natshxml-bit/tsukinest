@@ -107,10 +107,26 @@ function SearchContent() {
       try {
         const res = await searchManga(submittedQuery) as unknown as Record<string, unknown>;
         let rawData: Record<string, unknown>[] = [];
-        if (res && (res.success || res.message === "success" || res.status === "success")) {
-          if (Array.isArray(res.data)) rawData = res.data as Record<string, unknown>[];
-          else if (res.data && Array.isArray((res.data as Record<string, unknown>).data)) rawData = (res.data as Record<string, unknown[]>).data as Record<string, unknown>[];
-          else if (res.data && Array.isArray((res.data as Record<string, unknown>).results)) rawData = (res.data as Record<string, unknown[]>).results as Record<string, unknown>[];
+
+        // FIX: Backend ngirim `status: true` (boolean), BUKAN `status: "success"`
+        // (string). Sebelumnya pengecekan cuma cocokin exact string, jadi
+        // response valid dari backend selalu di-skip → "Data Tidak Ditemukan".
+        // Sekarang terima boolean true, string "success", ATAU kalau response
+        // punya array data/result langsung, treat itu sebagai sukses juga.
+        const isSuccess =
+          res?.success === true ||
+          res?.status === true ||
+          res?.status === "success" ||
+          res?.message === "success";
+
+        if (res && isSuccess) {
+          if (Array.isArray(res.data)) {
+            rawData = res.data as Record<string, unknown>[];
+          } else if (res.data && Array.isArray((res.data as Record<string, unknown>).data)) {
+            rawData = (res.data as Record<string, unknown[]>).data as Record<string, unknown>[];
+          } else if (res.data && Array.isArray((res.data as Record<string, unknown>).results)) {
+            rawData = (res.data as Record<string, unknown[]>).results as Record<string, unknown>[];
+          }
         }
         setResults(rawData.map(transformItem));
       } catch {
