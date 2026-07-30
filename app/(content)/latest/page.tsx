@@ -8,7 +8,6 @@ import { ArrowLeft, Star, Clock, ChevronLeft, ChevronRight, ImageIcon } from "lu
 
 import { API_BASE_URL } from "@/constants/api";
 
-// Lewat proxy (/api/proxy) -> cnest-shi. Backend lama (nest-network) udah pensiun.
 const BASE_URL = API_BASE_URL;
 
 // ─── UTILS ───
