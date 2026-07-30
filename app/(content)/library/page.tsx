@@ -27,6 +27,8 @@ interface LibraryItem extends MangaItem {
   status?: "ongoing" | "completed" | "hiatus";
   poster?: string;
   cover?: string;
+  cover_image_url?: string;
+  thumbnail_image_url?: string;
   image?: string;
   thumbnail?: string;
   thumb_url?: string;
@@ -52,6 +54,8 @@ function formatTypeWithFlag(rawType: string): string {
 function cleanThumbRaw(item: LibraryItem): string {
   const candidates = [
     item.thumb,
+    item.cover_image_url,
+    item.thumbnail_image_url,
     item.poster,
     item.cover,
     item.image,

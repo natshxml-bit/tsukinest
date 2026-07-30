@@ -42,42 +42,55 @@ export function useReadingHistory({
     if (!user || !data) return;
     const save = async () => {
       try {
-        const id = data.series_slug || chapterSlug;
+        const id = data.series_slug || data.manga_id || chapterSlug;
         const ref = doc(db, "users", user.uid, "history", id);
         const chStr = String(data.chapter_number).toLowerCase().includes("ch")
           ? String(data.chapter_number)
           : `Ch. ${data.chapter_number}`;
+
+        // FIX: Ambil thumb dari SEMUA kemungkinan field yang dikirim API.
+        // Sebelumnya cuma `thumbnail` / `thumb` — alesan utama card history
+        // tampil blank di screenshot user. API real pakai `cover_image_url`
+        // (di /detail) dan `thumbnail_image_url` (di /chapter).
+        const thumb =
+          detailData?.cover_image_url ||
+          detailData?.thumbnail ||
+          detailData?.thumb ||
+          data.thumbnail_image_url ||
+          "";
+
         await setDoc(
-  ref,
-  {
-    id,
-    slug: data.series_slug || data.manga_id || chapterSlug,
-    chapter_slug: chapterSlug,
+          ref,
+          {
+            id,
+            // FIX: kalau series_slug kosong (kayak kasus API chapter baru yang
+            // cuma ngirim manga_id), fallback ke manga_id biar doc tetep
+            // punya identifier yang konsisten.
+            slug: data.series_slug || data.manga_id || chapterSlug,
+            chapter_slug: chapterSlug,
 
-    title:
-      detailData?.title ||
-      data.series_title ||
-      data.title ||
-      "Unknown",
+            // FIX: title bisa datang dari banyak sumber, urutin dari
+            // yang paling reliable (detail / /detail) → chapter API →
+            // safety net.
+            title: detailData?.title || data.series_title || data.title || "Unknown",
 
-    lastReadChapter: chStr,
-    latest_chapter: chStr,
+            lastReadChapter: chStr,
+            latest_chapter: chStr,
 
-    savedAt: Date.now(),
-    lastReadAt: Date.now(),
+            savedAt: Date.now(),
+            lastReadAt: Date.now(),
 
-    thumb:
-      detailData?.cover_image_url ||
-      detailData?.thumbnail ||
-      detailData?.thumb ||
-      data.thumbnail_image_url ||
-      "",
+            // Simpen ke SEMUA alias biar kompatibel sama library reader
+            // lama (cleanThumbRaw) maupun yang baru.
+            thumb,
+            cover_image_url: thumb,
+            thumbnail_image_url: thumb,
 
-    type: detailData?.type || "MANGA",
-    status: detailData?.status || "",
-  },
-  { merge: true }
-);
+            type: detailData?.type || "MANGA",
+            status: detailData?.status || "",
+          },
+          { merge: true }
+        );
       } catch {
         // non-critical, silent fail
       }

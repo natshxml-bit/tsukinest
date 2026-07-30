@@ -9,7 +9,7 @@ import { getRead } from "@/lib/api";
 import { fixUrl, cleanNavigationSlug } from "@/features/chapter/utils/reader.utils";
 import type { ReadData, ReadMode, FitMode, ReadChapterRef } from "@/features/chapter/types";
 
-export function useReader() {
+export function useReader(seriesTitleFallback?: string) {
   const router = useRouter();
   const params = useParams();
   // params.slug = series slug, params.chapter = chapter slug
@@ -55,6 +55,17 @@ export function useReader() {
     return () => window.removeEventListener("scroll", onScroll);
   }, [chapterSlug]);
 
+  /* ─── Sync series_title dari fallback (datang dari /detail) ─── */
+  useEffect(() => {
+    if (!seriesTitleFallback || !data) return;
+    if (data.series_title && data.series_title !== "Membaca Komik") return;
+    setData((prev) =>
+      prev && prev.series_title !== seriesTitleFallback
+        ? { ...prev, series_title: seriesTitleFallback }
+        : prev
+    );
+  }, [seriesTitleFallback, data]);
+
   /* ─── Fetch chapter data ─── */
   useEffect(() => {
     if (!chapterSlug) return;
@@ -78,11 +89,16 @@ export function useReader() {
         let chapTitle = ch.series_title || "";
         let chapNum = ch.chapter_number || "";
         let chapSeriesSlug = ch.series_slug || seriesSlug || "";
+        const chapMangaId = ch.manga_id || "";
 
         if (!chapTitle || !chapNum) {
           const m = ch.title?.match(/(.*?)\s+(?:Chapter|Ch\.?|Bab)\s*(\d+(?:\.\d+)?)/i);
           if (m) { chapTitle ||= m[1].trim(); chapNum ||= m[2]; }
-          else chapTitle ||= ch.title?.replace(/-.*/, "").trim() || "Membaca Komik";
+          // FIX: kalau /chapter API nggak kirim series_title, fallback ke
+          // judul series yang di-pass dari parent (datang dari /detail),
+          // baru kalau itu juga gak ada, pakai title yg ke-parse dari
+          // ch.title, dan terakhir "Membaca Komik" sebagai safety net.
+          else chapTitle ||= ch.title?.replace(/-.*/, "").trim() || seriesTitleFallback?.trim() || "Membaca Komik";
         }
         chapSeriesSlug ||= chapterSlug.replace(/-(?:chapter|ch|bab)-?\d+(?:-\d+)?$/i, "");
         chapNum ||= chapterSlug.match(/\d+(?:-\d+)?$/)?.[0].replace("-", ".") || "?";
@@ -105,6 +121,7 @@ export function useReader() {
             chapter_number: chapNum,
             series_title: chapTitle,
             series_slug: chapSeriesSlug,
+            manga_id: chapMangaId,
             prev_chapter: prev,
             next_chapter: next,
             images,

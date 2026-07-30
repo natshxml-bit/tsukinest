@@ -39,19 +39,24 @@ export function ChapterReader() {
   const router = useRouter();
   const { style: accentStyle, accent } = useAccent();
 
-  const reader = useReader();
-
   const [user, setUser] = useState<FirebaseUser | null>(null);
   useAuthUser(useCallback((u) => setUser(u), []));
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [detailData, setDetailData] = useState<any>(null);
 
+  // FIX: useReader sekarang nerima `seriesTitleFallback` (opsional). Kita
+  // pass `detailData?.title` — yang bakal keisi dari /detail — supaya
+  // header chapter bisa nampilin nama series aslinya, bukan "Membaca Komik".
+  // (Detail di-fetch di effect di bawah, jadi pembacaan pertamanya mungkin
+  //  masih undefined — gak masalah, useReader bakal fallback ke logic lain.)
+  const reader = useReader(detailData?.title);
+
   // Fetch series detail for history thumb/type
   useEffect(() => {
-    if (!reader.data?.manga_id) return;
+    if (!reader.data?.series_slug) return;
     let cancelled = false;
-    getDetail(reader.data.manga_id)
+    getDetail(reader.data.series_slug)
       .then((res) => { if (!cancelled) setDetailData(res?.data || null); })
       .catch(() => {});
     return () => { cancelled = true; };
