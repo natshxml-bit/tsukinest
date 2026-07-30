@@ -14,13 +14,17 @@ import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore";
 
-// FIX: import envelope helper + tipe asli
 import { type MangaItem as ImportedMangaItem, getHome, unwrap, type ApiEnvelope } from "@/lib/api";
 import { useAccent } from "@/lib/accent";
 import { cn } from "@/utils/cn";
 import { cleanThumb } from "@/utils/image";
+import { formatMangaType } from "@/utils/manga";
 import SmartImage from "@/components/ui/SmartImage";
 import HeroCarousel from "@/components/manga/HeroCarousel";
+
+// =============================================================================
+// TYPES & HELPERS
+// =============================================================================
 
 type MangaItem = ImportedMangaItem & {
   is_new?: boolean;
@@ -29,83 +33,19 @@ type MangaItem = ImportedMangaItem & {
 
 type AccentStyle = Record<string, string>;
 
-// =============================================================================
-// transformItem — FINAL VERSION (handles taxonomy + country_id fallback)
-// =============================================================================
-// Sumber format:  1) taxonomy.Format[0].name  (project_update / mirror_update / recommended)
-//                2) country_id                (top.daily/weekly/all_time, gak punya taxonomy)
-//                3) rawItem.type (legacy)     (fallback terakhir)
-function transformItem(item: any): MangaItem {
-  const rawItem = item || {};
-  const taxonomy = rawItem.taxonomy || {};
-
-  // 1) Format komik (Manhwa / Manga / Manhua)
-  const formatArr = taxonomy.Format;
-  let formatName: string;
-  if (Array.isArray(formatArr) && formatArr.length > 0) {
-    formatName = String(formatArr[0]?.name || "").toUpperCase() || "MANGA";
-  } else if (rawItem.country_id) {
-    const countryMap: Record<string, string> = {
-      KR: "MANHWA",
-      JP: "MANGA",
-      CN: "MANHUA",
-    };
-    formatName = countryMap[String(rawItem.country_id).toUpperCase()] || "MANGA";
-  } else if (typeof rawItem.type === "string" && rawItem.type) {
-    formatName = rawItem.type.toUpperCase();
-  } else {
-    formatName = "MANGA";
-  }
-
-  // 2) Kategori (Project / Mirror)
-  const typeArr = taxonomy.Type;
-  const typeCategory = Array.isArray(typeArr) && typeArr.length > 0
-    ? String(typeArr[0]?.name || "").toUpperCase()
-    : "";
-
-  // 3) Susun type string dengan prefix spasi (konsisten dengan UI existing)
-  const finalType = typeCategory
-    ? ` ${typeCategory} • ${formatName}`.trim()
-    : ` ${formatName}`.trim();
-
-  // 4) Genres
-  const genres = Array.isArray(taxonomy.Genre)
-    ? taxonomy.Genre.map((g: any) => g?.name).filter(Boolean)
-    : Array.isArray(rawItem.genres) ? rawItem.genres : [];
-
-  // 5) Chapter (tolerant)
-  const rawChapter = rawItem.latest_chapter || rawItem.chapter || rawItem.latest_chapter_number;
-  const formattedChapter = rawChapter
-    ? (String(rawChapter).toLowerCase().includes("ch") ? String(rawChapter) : `Ch. ${rawChapter}`)
-    : "Ch. ?";
-
-  // 6) Rating (tolerant)
-  const rawRating = rawItem.rating || rawItem.user_rate;
-  const formattedRating = rawRating && String(rawRating) !== "0" ? String(rawRating) : "0";
-
-  return {
-    title: typeof rawItem.title === "string" ? rawItem.title : "Untitled",
-    // Backend gak kirim `slug` — pakai `manga_id` (UUID) sebagai identifier
-    slug: rawItem.slug || rawItem.manga_id || "",
-    thumb: cleanThumb(rawItem.thumb || rawItem.cover_image_url || rawItem.cover || ""),
-    type: finalType,
-    latest_chapter: formattedChapter,
-    rating: formattedRating,
-    link: typeof rawItem.link === "string" ? rawItem.link : "",
-    is_colored: Boolean(rawItem.is_colored),
-    is_hot: Boolean(rawItem.is_hot),
-    is_new: Boolean(rawItem.is_new),
-    synopsis: rawItem.synopsis || rawItem.description || "",
-    genres,
-    chapters: Array.isArray(rawItem.chapters) ? rawItem.chapters : [],
-  } as MangaItem;
+function getFlagCode(type: string): string | null {
+  const t = type.toLowerCase();
+  if (t === "manhwa") return "kr";
+  if (t === "manhua") return "cn";
+  if (t === "manga") return "jp";
+  return null;
 }
 
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour >= 5 && hour < 12) return { text: "Selamat Pagi", icon: "☀️" };
-  if (hour >= 12 && hour < 15) return { text: "Selamat Siang", icon: "🌤️" };
-  if (hour >= 15 && hour < 18) return { text: "Selamat Sore", icon: "🌅" };
+  if (hour >= 12 && hour < 15) return { text: "Selamat Siang", icon: "️" };
+  if (hour >= 15 && hour < 18) return { text: "Selamat Sore", icon: "" };
   return { text: "Selamat Malam", icon: "🌙" };
 }
 
@@ -147,9 +87,6 @@ interface DbNotif {
   createdAt: unknown;
 }
 
-// =============================================================================
-// HomeData — match envelope shape real dari backend `/home`
-// =============================================================================
 interface HomeData {
   data?: {
     project_update?: ApiEnvelope<any[]>;
@@ -168,6 +105,60 @@ interface HomeData {
   cached_at?: string;
 }
 
+// =============================================================================
+// TRANSFORM ITEM
+// =============================================================================
+
+function transformItem(item: any): MangaItem {
+  const rawItem = item || {};
+  const taxonomy = rawItem.taxonomy || {};
+
+  const formatArr = taxonomy.Format;
+  let rawType: string;
+  if (Array.isArray(formatArr) && formatArr.length > 0) {
+    rawType = String(formatArr[0]?.slug || formatArr[0]?.name || "").toUpperCase() || "MANGA";
+  } else if (rawItem.country_id) {
+    const countryMap: Record<string, string> = { KR: "MANHWA", JP: "MANGA", CN: "MANHUA" };
+    rawType = countryMap[String(rawItem.country_id).toUpperCase()] || "MANGA";
+  } else if (typeof rawItem.type === "string" && rawItem.type) {
+    rawType = rawItem.type.toUpperCase();
+  } else {
+    rawType = "MANGA";
+  }
+
+  const genres = Array.isArray(taxonomy.Genre)
+    ? taxonomy.Genre.map((g: any) => g?.name).filter(Boolean)
+    : Array.isArray(rawItem.genres) ? rawItem.genres : [];
+
+  const rawChapter = rawItem.latest_chapter || rawItem.chapter || rawItem.latest_chapter_number;
+  const formattedChapter = rawChapter
+    ? (String(rawChapter).toLowerCase().includes("ch") ? String(rawChapter) : `Ch. ${rawChapter}`)
+    : "Ch. ?";
+
+  const rawRating = rawItem.rating || rawItem.user_rate;
+  const formattedRating = rawRating && String(rawRating) !== "0" ? String(rawRating) : "0";
+
+  return {
+    title: typeof rawItem.title === "string" ? rawItem.title : "Untitled",
+    slug: rawItem.slug || rawItem.manga_id || "",
+    thumb: cleanThumb(rawItem.thumb || rawItem.cover_image_url || rawItem.cover || ""),
+    type: rawType,
+    latest_chapter: formattedChapter,
+    rating: formattedRating,
+    link: typeof rawItem.link === "string" ? rawItem.link : "",
+    is_colored: Boolean(rawItem.is_colored),
+    is_hot: Boolean(rawItem.is_hot),
+    is_new: Boolean(rawItem.is_new),
+    synopsis: rawItem.synopsis || rawItem.description || "",
+    genres,
+    chapters: Array.isArray(rawItem.chapters) ? rawItem.chapters : [],
+  } as MangaItem;
+}
+
+// =============================================================================
+// LOCAL STORAGE HELPERS
+// =============================================================================
+
 function getSeenSlugs(): string[] {
   if (typeof window === "undefined") return [];
   try { const raw = localStorage.getItem(SEEN_NOTIF_KEY); return raw ? JSON.parse(raw) : []; } catch { return []; }
@@ -181,6 +172,10 @@ function getRecentReads(): RecentRead[] {
   try { const raw = localStorage.getItem(RECENT_READS_KEY); return raw ? JSON.parse(raw) : []; } catch { return []; }
 }
 
+// =============================================================================
+// CACHE & HOOKS
+// =============================================================================
+
 let globalCache: { home: HomeData | null; timestamp: number } = { home: null, timestamp: 0 };
 const CACHE_DURATION = 5 * 60 * 1000;
 
@@ -190,13 +185,9 @@ function useOnlineStatus() {
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const applyStatus = (online: boolean) => {
       if (debounceTimer) clearTimeout(debounceTimer);
-      if (online) {
-        setIsOnline(true);
-      } else {
-        debounceTimer = setTimeout(() => setIsOnline(false), 1500);
-      }
+      if (online) setIsOnline(true);
+      else debounceTimer = setTimeout(() => setIsOnline(false), 1500);
     };
-
     applyStatus(navigator.onLine);
     const on = () => applyStatus(true);
     const off = () => applyStatus(false);
@@ -234,6 +225,10 @@ function usePullToRefresh(onRefresh: () => Promise<void>) {
   return { pulling, pullDistance, onTouchStart, onTouchMove, onTouchEnd };
 }
 
+// =============================================================================
+// HEADER
+// =============================================================================
+
 function Header({ onNotifClick, hasUnread, user, onSearchClick, accentStyle }: {
   onNotifClick: () => void; hasUnread: boolean; user: FirebaseUser | null; onSearchClick: () => void; accentStyle: AccentStyle;
 }) {
@@ -269,6 +264,10 @@ function Header({ onNotifClick, hasUnread, user, onSearchClick, accentStyle }: {
   );
 }
 
+// =============================================================================
+// QUICK SEARCH BAR
+// =============================================================================
+
 function QuickSearchBar({ open, onClose, accentStyle }: { open: boolean; onClose: () => void; accentStyle: AccentStyle }) {
   const [q, setQ] = useState("");
   const router = useRouter();
@@ -303,6 +302,10 @@ function QuickSearchBar({ open, onClose, accentStyle }: { open: boolean; onClose
     </div>
   );
 }
+
+// =============================================================================
+// NOTIFICATION POPUP
+// =============================================================================
 
 function NotifPopup({ open, onClose, items, onMarkRead, dbNotifs, user, accentStyle }: {
   open: boolean; onClose: () => void; items: MangaItem[]; onMarkRead: () => void;
@@ -382,6 +385,10 @@ function NotifPopup({ open, onClose, items, onMarkRead, dbNotifs, user, accentSt
   );
 }
 
+// =============================================================================
+// SECTION HEADER
+// =============================================================================
+
 function SectionHeader({ title, icon: Icon, actionLabel, actionHref = "#", rightContent, accentStyle, subtitle, badge }: {
   title: string; icon?: React.ElementType; actionLabel?: string; actionHref?: string;
   rightContent?: React.ReactNode; accentStyle: AccentStyle; subtitle?: string; badge?: React.ReactNode;
@@ -400,6 +407,35 @@ function SectionHeader({ title, icon: Icon, actionLabel, actionHref = "#", right
   );
 }
 
+// =============================================================================
+// BADGE COMPONENT — FIXED: gak overlap, width konsisten
+// =============================================================================
+
+function TypeBadge({ type, className = "" }: { type: string; className?: string }) {
+  const flagCode = getFlagCode(type);
+  const displayType = formatMangaType(type);
+  return (
+    <span className={cn(
+      "px-1.5 py-[2px] rounded-md text-[8px] font-bold text-white/90 uppercase bg-black/70 border border-white/10 tracking-wide flex items-center gap-1 shrink-0",
+      className
+    )}>
+      {flagCode && (
+        <img
+          src={`https://flagcdn.com/w16/${flagCode}.png`}
+          alt=""
+          className="w-3 h-2 rounded-[1px] object-cover shrink-0"
+          loading="lazy"
+        />
+      )}
+      <span className="truncate max-w-[50px]">{displayType}</span>
+    </span>
+  );
+}
+
+// =============================================================================
+// MANGA CARD — FIXED: Badge layout rapi, gak overlap
+// =============================================================================
+
 const MangaCard = memo(function MangaCard({ item, variant = "default", accentStyle }: {
   item: MangaItem; variant?: "default" | "compact" | "project"; index?: number; accent?: string; accentStyle: AccentStyle;
 }) {
@@ -409,17 +445,24 @@ const MangaCard = memo(function MangaCard({ item, variant = "default", accentSty
         <div className="relative overflow-hidden rounded-xl bg-[#141414] aspect-[2/3] mb-2">
           <SmartImage src={item.thumb || "/no-image.png"} alt={item.title} title={item.title} fill loading="lazy" decoding="async" className="object-cover" sizes="(max-width: 768px) 33vw, 20vw" unoptimized />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-          <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1 pointer-events-none z-10">
-            <div className="px-1.5 py-0.5 rounded bg-black/70 text-[9px] font-medium text-white/90 uppercase max-w-[55%] truncate">{item.type}</div>
+
+          {/* ✅ Badge Container — FIXED layout */}
+          <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1.5 pointer-events-none z-10">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <TypeBadge type={item.type} />
+            </div>
             {item.rating !== "0" && item.rating !== "?" && (
               <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-black/70 shrink-0">
-                <Star className="w-2.5 h-2.5 text-yellow-400 fill-yellow-400" /><span className="text-[9px] font-bold text-white">{item.rating}</span>
+                <Star className="w-2.5 h-2.5 text-yellow-400 fill-yellow-400" />
+                <span className="text-[9px] font-bold text-white">{item.rating}</span>
               </div>
             )}
           </div>
+
           <div className="absolute bottom-2 left-2 right-2 flex items-end justify-between gap-1 pointer-events-none z-10">
             <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/70 min-w-0">
-              <Clock className="w-2.5 h-2.5 text-neutral-300 shrink-0" /><span className="text-[9px] font-medium text-white truncate">{item.latest_chapter}</span>
+              <Clock className="w-2.5 h-2.5 text-neutral-300 shrink-0" />
+              <span className="text-[9px] font-medium text-white truncate">{item.latest_chapter}</span>
             </div>
             <div className="shrink-0 flex gap-1">
               {item.is_hot && <span className="px-1.5 py-0.5 rounded bg-red-500 text-[9px] font-bold text-white uppercase">HOT</span>}
@@ -433,17 +476,34 @@ const MangaCard = memo(function MangaCard({ item, variant = "default", accentSty
   );
 });
 
+// =============================================================================
+// NEW RELEASE CARD — FIXED
+// =============================================================================
+
 const NewReleaseCard = memo(function NewReleaseCard({ item, accentStyle }: { item: MangaItem; accent?: string; accentStyle: AccentStyle }) {
   return (
     <Link href={`/manga/${item.slug}`} prefetch={false} className="block flex-shrink-0 w-[150px] active:scale-95 transition-transform duration-150">
       <div className="relative overflow-hidden rounded-xl bg-[#141414] aspect-[2/3] mb-2">
         <SmartImage src={item.thumb || "/no-image.png"} alt={item.title} title={item.title} fill loading="lazy" decoding="async" className="object-cover" sizes="150px" unoptimized />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-        <div className="absolute top-2 right-2 z-10"><div className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold text-white uppercase", accentStyle.bg)}>NEW</div></div>
-        <div className="absolute top-2 left-2 z-10"><span className="px-1.5 py-0.5 rounded bg-black/70 text-[9px] font-medium text-white/90 uppercase">{item.type}</span></div>
+        <div className="absolute top-2 right-2 z-10">
+          <div className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold text-white uppercase", accentStyle.bg)}>NEW</div>
+        </div>
+
+        {/* ✅ Badge — FIXED */}
+        <div className="absolute top-2 left-2 z-10">
+          <TypeBadge type={item.type} />
+        </div>
+
         <div className="absolute bottom-2 left-2 right-2 z-10">
           <div className="flex items-center gap-1">
-            {item.rating !== "0" && item.rating !== "?" && (<><Star className="w-3 h-3 text-yellow-400 fill-yellow-400" /><span className="text-[10px] font-bold text-white">{item.rating}</span><span className="text-neutral-600 text-[10px]">•</span></>)}
+            {item.rating !== "0" && item.rating !== "?" && (
+              <>
+                <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                <span className="text-[10px] font-bold text-white">{item.rating}</span>
+                <span className="text-neutral-600 text-[10px]">•</span>
+              </>
+            )}
             <span className={cn("text-[10px] font-medium", accentStyle.text)}>{item.latest_chapter}</span>
           </div>
         </div>
@@ -452,6 +512,10 @@ const NewReleaseCard = memo(function NewReleaseCard({ item, accentStyle }: { ite
     </Link>
   );
 });
+
+// =============================================================================
+// PROJECT CARD — FIXED
+// =============================================================================
 
 const ProjectCard = memo(function ProjectCard({ item, accentStyle }: { item: MangaItem; index?: number; accent?: string; accentStyle: AccentStyle }) {
   const latestChapter = (item.chapters as { released_time?: string }[])?.[0] || null;
@@ -467,10 +531,17 @@ const ProjectCard = memo(function ProjectCard({ item, accentStyle }: { item: Man
       </div>
       <div className="flex-1 min-w-0 py-0.5">
         <h4 className="text-sm font-medium text-white line-clamp-2 leading-snug mb-1">{item.title}</h4>
-        <div className="flex items-center gap-2 text-xs text-neutral-500 mb-1">
-          <span className="px-1 py-[1px] rounded bg-white/[0.06] text-[9px] font-medium text-neutral-400 uppercase shrink-0">{item.type}</span>
-          <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {item.latest_chapter}</span>
-          {item.rating !== "0" && item.rating !== "?" && <span className="flex items-center gap-1 text-yellow-500"><Star className="w-3 h-3 fill-yellow-500" /> {item.rating}</span>}
+        <div className="flex items-center gap-2 text-xs text-neutral-500 mb-1 flex-wrap">
+          {/* ✅ Badge — FIXED */}
+          <TypeBadge type={item.type} className="text-[8px] px-1 py-[1px]" />
+          <span className="flex items-center gap-1 shrink-0">
+            <Clock className="w-3 h-3" /> {item.latest_chapter}
+          </span>
+          {item.rating !== "0" && item.rating !== "?" && (
+            <span className="flex items-center gap-1 text-yellow-500 shrink-0">
+              <Star className="w-3 h-3 fill-yellow-500" /> {item.rating}
+            </span>
+          )}
         </div>
         {latestChapter && (
           <div className="flex items-center gap-1.5">
@@ -480,7 +551,9 @@ const ProjectCard = memo(function ProjectCard({ item, accentStyle }: { item: Man
         )}
         {item.genres && item.genres.length > 0 && (
           <div className="mt-1.5 flex gap-1 flex-wrap">
-            {item.genres.slice(0, 2).map((genre: string) => <span key={genre} className="px-1.5 py-0.5 rounded bg-white/[0.04] text-[9px] text-neutral-500">{genre}</span>)}
+            {item.genres.slice(0, 2).map((genre: string) => (
+              <span key={genre} className="px-1.5 py-0.5 rounded bg-white/[0.04] text-[9px] text-neutral-500">{genre}</span>
+            ))}
           </div>
         )}
       </div>
@@ -488,6 +561,10 @@ const ProjectCard = memo(function ProjectCard({ item, accentStyle }: { item: Man
     </Link>
   );
 });
+
+// =============================================================================
+// RECENT READS
+// =============================================================================
 
 function RecentReads({ reads, accentStyle }: { reads: RecentRead[]; accent?: string; accentStyle: AccentStyle }) {
   if (reads.length === 0) return null;
@@ -503,7 +580,9 @@ function RecentReads({ reads, accentStyle }: { reads: RecentRead[]; accent?: str
                 <SmartImage src={read.thumb || "/no-image.png"} alt={read.title} title={read.title} fill loading="lazy" decoding="async" sizes="120px" className="object-cover" unoptimized />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-2">
-                  <div className="h-0.5 bg-white/10 rounded-full overflow-hidden mb-1.5"><div className={cn("h-full rounded-full", accentStyle.bg)} style={{ width: `${progress}%` }} /></div>
+                  <div className="h-0.5 bg-white/10 rounded-full overflow-hidden mb-1.5">
+                    <div className={cn("h-full rounded-full", accentStyle.bg)} style={{ width: `${progress}%` }} />
+                  </div>
                   <p className={cn("text-[10px] font-medium truncate", accentStyle.text)}>{read.chapter}</p>
                 </div>
               </div>
@@ -515,6 +594,10 @@ function RecentReads({ reads, accentStyle }: { reads: RecentRead[]; accent?: str
     </section>
   );
 }
+
+// =============================================================================
+// FLOATING BUTTONS & STATES
+// =============================================================================
 
 function ScrollToTop({ accentStyle }: { accentStyle: AccentStyle }) {
   const [show, setShow] = useState(false);
@@ -579,11 +662,16 @@ function OfflineBanner() {
   return (
     <div className="fixed top-14 left-0 right-0 z-40 bg-red-500/10 border-b border-red-500/20 px-4 py-2">
       <div className="max-w-md mx-auto flex items-center justify-center gap-2 text-xs text-red-400">
-        <WifiOff className="w-3.5 h-3.5" /><span>Koneksi terputus. Menunggu jaringan...</span>
+        <WifiOff className="w-3.5 h-3.5" />
+        <span>Koneksi terputus. Menunggu jaringan...</span>
       </div>
     </div>
   );
 }
+
+// =============================================================================
+// HOME PAGE
+// =============================================================================
 
 export default function HomePage() {
   const { accent, style: accentStyle } = useAccent();
@@ -633,12 +721,7 @@ export default function HomePage() {
   useEffect(() => { setRecentReads(getRecentReads()); }, []);
 
   // ========================================================================
-  // MAPPING — match envelope shape real dari backend
-  //   popular       ← top.daily            (Populer Hari Ini, badge via country_id)
-  //   latest        ← mirror_update        (Episode Terbaru, punya detail chapters)
-  //   projects      ← project_update       (Project Update, badge "PROJECT • MANHWA")
-  //   topWeekly     ← top.weekly           (Top Mingguan, ranking #1 #2 #3)
-  //   recommendations ← recommended.{manhwa,manga,manhua} (flatten)
+  // DATA MAPPING
   // ========================================================================
   const popular = useMemo(() => unwrap(homeData?.data?.top?.daily, []).map(transformItem), [homeData]);
   const projects = useMemo(() => unwrap(homeData?.data?.project_update, []).map(transformItem), [homeData]);
@@ -753,7 +836,6 @@ export default function HomePage() {
               )}
             </section>
 
-            {/* Section baru: Top Mingguan (dari top.weekly) dengan badge ranking */}
             {!loading && topWeekly.length > 0 && (
               <section>
                 <SectionHeader
