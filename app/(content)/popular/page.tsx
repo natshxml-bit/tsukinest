@@ -14,7 +14,7 @@ import { formatMangaType } from "@/utils/manga";
 import type { MangaItem } from "@/types/manga";
 
 // =============================================================================
-// HELPERS — Sama persis dengan Search & Explore
+// HELPERS
 // =============================================================================
 
 function extractType(item: Record<string, unknown>): string {
@@ -29,14 +29,6 @@ function extractType(item: Record<string, unknown>): string {
   if (countryId === "CN") return "MANHUA";
   if (countryId === "JP") return "MANGA";
   return (typeof item.type === "string" ? item.type : "MANHWA").toUpperCase();
-}
-
-function getFlagCode(type: string): string | null {
-  const t = type.toLowerCase();
-  if (t === "manhwa") return "kr";
-  if (t === "manhua") return "cn";
-  if (t === "manga") return "jp";
-  return null;
 }
 
 function transformItem(item: Record<string, unknown>): MangaItem {
@@ -79,7 +71,7 @@ function transformItem(item: Record<string, unknown>): MangaItem {
 }
 
 // =============================================================================
-// MANGA CARD — Badge + Flag selaras dengan Explore & Search
+// MANGA CARD
 // =============================================================================
 
 function MangaCard({
@@ -89,7 +81,6 @@ function MangaCard({
   item: MangaItem;
   accentStyle: { bg: string; text: string };
 }) {
-  const flagCode = getFlagCode(item.type);
   const displayType = formatMangaType(item.type);
 
   return (
@@ -111,17 +102,9 @@ function MangaCard({
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
 
-          {/* Badge + Flag */}
+          {/* Badge (Tanpa Icon Gambar) */}
           <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1 pointer-events-none z-10">
             <span className="px-1.5 py-[2px] rounded-md text-[8px] font-bold text-white/90 uppercase bg-black/70 border border-white/10 tracking-wide flex items-center gap-1 max-w-[60%]">
-              {flagCode && (
-                <img
-                  src={`https://flagcdn.com/w16/${flagCode}.png`}
-                  alt=""
-                  className="w-3 h-2 rounded-[1px] object-cover shrink-0"
-                  loading="lazy"
-                />
-              )}
               <span className="truncate">{displayType}</span>
             </span>
             {item.rating && item.rating !== "0" && item.rating !== "?" && (
@@ -176,14 +159,14 @@ export default function PopularPage({
     setLoading(true);
     setError(false);
 
-    // ✅ FIX: Konek ke /filter dengan order=popular (bukan /popular yang gak ada)
+    // ✅ FIX: Konek ke /filter dengan order=popular
     fetch(`${API_BASE_URL}/filter?order=popular&page=${currentPage}`)
       .then((res) => {
         if (!res.ok) throw new Error("Network response was not ok");
         return res.json();
       })
       .then((json) => {
-        // ✅ FIX: Backend kirim status: true (boolean), bukan success
+        // ✅ FIX: Backend kirim status: true (boolean)
         if (json.status && json.data?.results) {
           const rawData = json.data.results as Record<string, unknown>[];
           setComics(rawData.map(transformItem));
