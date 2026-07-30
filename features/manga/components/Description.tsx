@@ -12,7 +12,7 @@ interface DescriptionProps {
   synopsis: string;
 }
 
-export function Description({ synopsis }: DescriptionProps) {
+export function Description({ synopsis = "" }: DescriptionProps) {
   const { style: accentStyle } = useAccent();
   const [showFull, setShowFull] = useState(false);
   const isLong = synopsis.length > 180;

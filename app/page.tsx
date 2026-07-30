@@ -14,15 +14,14 @@ import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore";
 
-// FIX: Import tipe asli dengan alias, lalu kita extend di bawahnya agar TS tidak error
-import { type MangaItem as ImportedMangaItem, getHome } from "@/lib/api";
+// FIX: import envelope helper + tipe asli
+import { type MangaItem as ImportedMangaItem, getHome, unwrap, type ApiEnvelope } from "@/lib/api";
 import { useAccent } from "@/lib/accent";
 import { cn } from "@/utils/cn";
 import { cleanThumb } from "@/utils/image";
 import SmartImage from "@/components/ui/SmartImage";
 import HeroCarousel from "@/components/manga/HeroCarousel";
 
-// Extend tipe MangaItem untuk mengakomodasi properti tambahan yang dipakai di komponen ini
 type MangaItem = ImportedMangaItem & {
   is_new?: boolean;
   chapters?: any[];
@@ -30,32 +29,73 @@ type MangaItem = ImportedMangaItem & {
 
 type AccentStyle = Record<string, string>;
 
-// FIX: Ubah parameter menjadi any untuk menghindari error overlapping type dari TypeScript
+// =============================================================================
+// transformItem — FINAL VERSION (handles taxonomy + country_id fallback)
+// =============================================================================
+// Sumber format:  1) taxonomy.Format[0].name  (project_update / mirror_update / recommended)
+//                2) country_id                (top.daily/weekly/all_time, gak punya taxonomy)
+//                3) rawItem.type (legacy)     (fallback terakhir)
 function transformItem(item: any): MangaItem {
   const rawItem = item || {};
-  const rawType = (typeof rawItem.type === "string" ? rawItem.type : "MANGA").toUpperCase();
-  let typeWithFlag = rawType;
-  if (rawType.includes("MANHWA")) typeWithFlag = " " + rawType;
-  else if (rawType.includes("MANHUA")) typeWithFlag = " " + rawType;
-  else if (rawType.includes("MANGA")) typeWithFlag = " " + rawType;
+  const taxonomy = rawItem.taxonomy || {};
 
-  const taxonomy = rawItem.taxonomy;
-  const genres = taxonomy?.Genre
-    ? taxonomy.Genre.map((g: any) => g.name)
+  // 1) Format komik (Manhwa / Manga / Manhua)
+  const formatArr = taxonomy.Format;
+  let formatName: string;
+  if (Array.isArray(formatArr) && formatArr.length > 0) {
+    formatName = String(formatArr[0]?.name || "").toUpperCase() || "MANGA";
+  } else if (rawItem.country_id) {
+    const countryMap: Record<string, string> = {
+      KR: "MANHWA",
+      JP: "MANGA",
+      CN: "MANHUA",
+    };
+    formatName = countryMap[String(rawItem.country_id).toUpperCase()] || "MANGA";
+  } else if (typeof rawItem.type === "string" && rawItem.type) {
+    formatName = rawItem.type.toUpperCase();
+  } else {
+    formatName = "MANGA";
+  }
+
+  // 2) Kategori (Project / Mirror)
+  const typeArr = taxonomy.Type;
+  const typeCategory = Array.isArray(typeArr) && typeArr.length > 0
+    ? String(typeArr[0]?.name || "").toUpperCase()
+    : "";
+
+  // 3) Susun type string dengan prefix spasi (konsisten dengan UI existing)
+  const finalType = typeCategory
+    ? ` ${typeCategory} • ${formatName}`.trim()
+    : ` ${formatName}`.trim();
+
+  // 4) Genres
+  const genres = Array.isArray(taxonomy.Genre)
+    ? taxonomy.Genre.map((g: any) => g?.name).filter(Boolean)
     : Array.isArray(rawItem.genres) ? rawItem.genres : [];
+
+  // 5) Chapter (tolerant)
+  const rawChapter = rawItem.latest_chapter || rawItem.chapter || rawItem.latest_chapter_number;
+  const formattedChapter = rawChapter
+    ? (String(rawChapter).toLowerCase().includes("ch") ? String(rawChapter) : `Ch. ${rawChapter}`)
+    : "Ch. ?";
+
+  // 6) Rating (tolerant)
+  const rawRating = rawItem.rating || rawItem.user_rate;
+  const formattedRating = rawRating && String(rawRating) !== "0" ? String(rawRating) : "0";
 
   return {
     title: typeof rawItem.title === "string" ? rawItem.title : "Untitled",
-    slug: typeof rawItem.slug === "string" ? rawItem.slug : typeof rawItem.manga_id === "string" ? rawItem.manga_id : "",
-    thumb: cleanThumb(typeof rawItem.thumb === "string" ? rawItem.thumb : typeof rawItem.cover_image_url === "string" ? rawItem.cover_image_url : ""),
-    type: typeWithFlag,
-    latest_chapter: typeof rawItem.latest_chapter === "string" ? rawItem.latest_chapter : rawItem.latest_chapter_number ? `Ch. ${rawItem.latest_chapter_number}` : "Ch. ?",
-    rating: rawItem.rating && rawItem.rating !== "0" ? String(rawItem.rating) : "0",
+    // Backend gak kirim `slug` — pakai `manga_id` (UUID) sebagai identifier
+    slug: rawItem.slug || rawItem.manga_id || "",
+    thumb: cleanThumb(rawItem.thumb || rawItem.cover_image_url || rawItem.cover || ""),
+    type: finalType,
+    latest_chapter: formattedChapter,
+    rating: formattedRating,
     link: typeof rawItem.link === "string" ? rawItem.link : "",
     is_colored: Boolean(rawItem.is_colored),
     is_hot: Boolean(rawItem.is_hot),
     is_new: Boolean(rawItem.is_new),
-    synopsis: typeof rawItem.synopsis === "string" ? rawItem.synopsis : typeof rawItem.description === "string" ? rawItem.description : "",
+    synopsis: rawItem.synopsis || rawItem.description || "",
     genres,
     chapters: Array.isArray(rawItem.chapters) ? rawItem.chapters : [],
   } as MangaItem;
@@ -107,16 +147,25 @@ interface DbNotif {
   createdAt: unknown;
 }
 
-// FIX: Longgarkan tipe array ke any[] agar bebas dari type error saat mapping
+// =============================================================================
+// HomeData — match envelope shape real dari backend `/home`
+// =============================================================================
 interface HomeData {
   data?: {
-    popular_today?: any[];
-    top_daily?: any[];
-    project_update?: any[];
-    latest_update?: any[];
-    recommended_manhwa?: any[];
-    recommendations?: any[];
+    project_update?: ApiEnvelope<any[]>;
+    mirror_update?: ApiEnvelope<any[]>;
+    recommended?: {
+      manhwa?: ApiEnvelope<any[]>;
+      manga?: ApiEnvelope<any[]>;
+      manhua?: ApiEnvelope<any[]>;
+    };
+    top?: {
+      daily?: ApiEnvelope<any[]>;
+      weekly?: ApiEnvelope<any[]>;
+      all_time?: ApiEnvelope<any[]>;
+    };
   };
+  cached_at?: string;
 }
 
 function getSeenSlugs(): string[] {
@@ -138,16 +187,10 @@ const CACHE_DURATION = 5 * 60 * 1000;
 function useOnlineStatus() {
   const [isOnline, setIsOnline] = useState(true);
   useEffect(() => {
-    // `navigator.onLine` sering keliru sesaat pas halaman baru di-refresh
-    // (koneksi lagi "dilepas-sambung ulang"), jadi jangan langsung dipercaya
-    // mentah-mentah -- tunda sebentar, baru tampilkan banner offline kalau
-    // statusnya beneran bertahan (bukan cuma kedipan sesaat).
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
     const applyStatus = (online: boolean) => {
       if (debounceTimer) clearTimeout(debounceTimer);
       if (online) {
-        // Balik online boleh langsung, gak perlu ditunda.
         setIsOnline(true);
       } else {
         debounceTimer = setTimeout(() => setIsOnline(false), 1500);
@@ -563,7 +606,7 @@ export default function HomePage() {
     }
     setLoading(true); setError(false);
     try {
-      const homeRes = await getHome() as HomeData;
+      const homeRes = (await getHome()) as HomeData;
       if (!homeRes) { setError(true); return; }
       globalCache = { home: homeRes, timestamp: Date.now() };
       setHomeData(homeRes);
@@ -589,10 +632,27 @@ export default function HomePage() {
   }, [fetchData, isOnline]);
   useEffect(() => { setRecentReads(getRecentReads()); }, []);
 
-  const popular = useMemo(() => (homeData?.data?.popular_today || homeData?.data?.top_daily || []).map(transformItem), [homeData]);
-  const projects = useMemo(() => (homeData?.data?.project_update || []).map(transformItem), [homeData]);
-  const latest = useMemo(() => (homeData?.data?.latest_update || homeData?.data?.recommended_manhwa || []).map(transformItem), [homeData]);
-  const recommendations = useMemo(() => (homeData?.data?.recommendations || []).map(transformItem), [homeData]);
+  // ========================================================================
+  // MAPPING — match envelope shape real dari backend
+  //   popular       ← top.daily            (Populer Hari Ini, badge via country_id)
+  //   latest        ← mirror_update        (Episode Terbaru, punya detail chapters)
+  //   projects      ← project_update       (Project Update, badge "PROJECT • MANHWA")
+  //   topWeekly     ← top.weekly           (Top Mingguan, ranking #1 #2 #3)
+  //   recommendations ← recommended.{manhwa,manga,manhua} (flatten)
+  // ========================================================================
+  const popular = useMemo(() => unwrap(homeData?.data?.top?.daily, []).map(transformItem), [homeData]);
+  const projects = useMemo(() => unwrap(homeData?.data?.project_update, []).map(transformItem), [homeData]);
+  const latest = useMemo(() => unwrap(homeData?.data?.mirror_update, []).map(transformItem), [homeData]);
+  const topWeekly = useMemo(() => unwrap(homeData?.data?.top?.weekly, []).map(transformItem), [homeData]);
+  const recommendations = useMemo(() => {
+    const rec = homeData?.data?.recommended;
+    if (!rec) return [];
+    return [
+      ...unwrap(rec.manhwa, []),
+      ...unwrap(rec.manga, []),
+      ...unwrap(rec.manhua, []),
+    ].map(transformItem);
+  }, [homeData]);
 
   const newReleases = useMemo(() => {
     const all = [...popular, ...latest, ...projects, ...recommendations];
@@ -608,7 +668,7 @@ export default function HomePage() {
       .slice(0, 6);
   }, [recommendations]);
 
-  const allItems = useMemo(() => [...popular, ...latest, ...projects, ...recommendations], [popular, latest, projects, recommendations]);
+  const allItems = useMemo(() => [...popular, ...latest, ...projects, ...recommendations, ...topWeekly], [popular, latest, projects, recommendations, topWeekly]);
 
   useEffect(() => {
     if (latest.length === 0) return;
@@ -692,6 +752,29 @@ export default function HomePage() {
                 <div className="space-y-1">{latest.slice(0, 6).map((item, i) => <ProjectCard key={`${item.slug}-${i}`} item={item} index={i} accent={accent} accentStyle={accentStyle} />)}</div>
               )}
             </section>
+
+            {/* Section baru: Top Mingguan (dari top.weekly) dengan badge ranking */}
+            {!loading && topWeekly.length > 0 && (
+              <section>
+                <SectionHeader
+                  title="Top Mingguan"
+                  icon={Crown}
+                  accentStyle={accentStyle}
+                  subtitle="Peringkat tertinggi minggu ini"
+                  badge={<span className="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[9px] font-bold uppercase shrink-0">RANK</span>}
+                />
+                <div className="grid grid-cols-3 gap-3">
+                  {topWeekly.slice(0, 6).map((item, i) => (
+                    <div key={`${item.slug}-${i}`} className="h-full relative">
+                      <span className={cn("absolute -top-1 -left-1 z-20 w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center ring-2 ring-[#0a0a0a]", i < 3 ? "bg-amber-500 text-black" : "bg-[#262626] text-white")}>
+                        {i + 1}
+                      </span>
+                      <MangaCard item={item} variant="default" index={i} accent={accent} accentStyle={accentStyle} />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             <section>
               <div className="flex items-end justify-between mb-3">

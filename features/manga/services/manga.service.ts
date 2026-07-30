@@ -1,5 +1,3 @@
-// features/manga/services/manga.service.ts
-// Service layer untuk manga detail — wrapper tipis di atas lib/api.ts
 
 import { getDetail } from "@/lib/api";
 import type { MangaDetail, ChapterItem } from "@/types/manga";
@@ -31,11 +29,13 @@ function normalizeChapter(c: Record<string, unknown>, idx: number): ChapterItem 
     slug:
       (c.slug as string | undefined) ||
       (c.chapter_slug as string | undefined) ||
+      (c.chapter_id as string | undefined) ||     // ← TAMBAH INI
       "",
     views: (c.views as string | undefined) || "0",
     pages: (c.pages as number | undefined) || 0,
   };
 }
+
 
 export async function fetchMangaDetail(slug: string): Promise<MangaDetail | null> {
   const res = await getDetail(slug);
@@ -45,13 +45,16 @@ export async function fetchMangaDetail(slug: string): Promise<MangaDetail | null
 
   const normalized: MangaDetail = {
     title: (raw.title as string) || "Judul Tidak Tersedia",
-    alternative_title: raw.alternative_title as string | undefined,
+    alternative_title: (raw.alternative_title as string) || undefined,
     thumb: cleanThumb(
-      (raw.thumb as string) || (raw.thumbnail as string) || ""
+      (raw.cover_image_url as string) ||
+      (raw.thumb as string) ||
+      (raw.thumbnail as string) ||
+      ""
     ),
-    rating: raw.rating as string | undefined,
+    rating: (raw.user_rate as number | undefined)?.toString() || (raw.rating as string) || undefined,
     status: raw.status as string | undefined,
-    type: raw.type as string | undefined,
+    type: (raw.country_id as string) || (raw.type as string) || undefined,
     author:
       (raw.author as string | undefined) ||
       ((raw.authors as string[] | undefined)?.[0]),
@@ -60,17 +63,19 @@ export async function fetchMangaDetail(slug: string): Promise<MangaDetail | null
       ((raw.artists as string[] | undefined)?.[0]),
     genres: (raw.genres as MangaDetail["genres"]) || [],
     synopsis:
-      (raw.synopsis as string) || "Sinopsis belum tersedia untuk seri ini.",
+      (raw.description as string) ||
+      (raw.synopsis as string) ||
+      "Sinopsis belum tersedia untuk seri ini.",
     chapters: ((raw.chapters as Record<string, unknown>[]) || []).map(
       normalizeChapter
     ),
-    views: (raw.views as string) || "0",
-    followers: (raw.followers as string) || "0",
+    views: (raw.view_count as number | undefined)?.toString() || (raw.views as string) || "0",
+    followers: (raw.bookmark_count as number | undefined)?.toString() || (raw.followers as string) || "0",
     release_year:
       (raw.release_year as string | undefined) ||
       (raw.year as string | undefined) ||
       (raw.released as string | undefined),
-    total_chapters: raw.total_chapters as number | undefined,
+    total_chapters: (raw.chapters as unknown[])?.length || raw.total_chapters as number | undefined,
     updated_at:
       (raw.updated_at as string | undefined) ||
       (raw.last_updated as string | undefined) ||

@@ -4,80 +4,207 @@ import type { MangaItem, RelatedSeries } from "@/types/manga";
 
 export type { MangaItem } from "@/types/manga";
 
-export interface HomeApiResponse {
-  success: boolean;
-  data: {
-    popular_today: MangaItem[];
-    project_update: MangaItem[];
-    latest_update: MangaItem[];
-    recommendations: MangaItem[];
+// =============================================================================
+// ENVELOPE TYPE
+// =============================================================================
+export interface ApiEnvelope<T> {
+  retcode: number;
+  message?: string;
+  meta?: {
+    request_id?: string;
+    timestamp?: number;
+    process_time?: string;
+    page?: number;
+    page_size?: number;
+    total_page?: number;
+    total_record?: number;
+    [key: string]: any;
   };
-  cached?: boolean;
+  data: T;
 }
 
-export interface DetailApiResponse {
-  success: boolean;
-  // Fields marked optional are genuinely inconsistent across sources on the
-  // backend (scraped data) — the detail page reads them defensively with
-  // `||` fallbacks rather than trusting them to be present. This shape
-  // mirrors what app/(content)/detail/[slug]/page.tsx actually normalizes,
-  // instead of the narrower shape that was here before.
+export function unwrap<T>(env: ApiEnvelope<T> | T | undefined | null, fallback: T): T {
+  if (env == null) return fallback;
+  if (Array.isArray(env)) return env as unknown as T;
+  if (typeof env === "object" && "data" in (env as object) && (env as { data?: unknown }).data !== undefined) {
+    return (env as ApiEnvelope<T>).data;
+  }
+  return fallback;
+}
+
+// =============================================================================
+// ANNOUNCEMENT
+// =============================================================================
+export interface AnnouncementListItem {
+  announcement_id: string;
+  title: string;
+  thumbnail_image_url: string;
+  publish_status: number;
+  created_date: string;
+}
+
+export interface AnnouncementDetailItem extends AnnouncementListItem {
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// =============================================================================
+// HOME API RESPONSE
+// =============================================================================
+export interface HomeApiResponse {
+  status: boolean;
   data: {
+    project_update: ApiEnvelope<MangaItem[]>;
+    mirror_update: ApiEnvelope<MangaItem[]>;
+    recommended: {
+      manhwa: ApiEnvelope<MangaItem[]>;
+      manga: ApiEnvelope<MangaItem[]>;
+      manhua: ApiEnvelope<MangaItem[]>;
+    };
+    top: {
+      daily: ApiEnvelope<MangaItem[]>;
+      weekly: ApiEnvelope<MangaItem[]>;
+      all_time: ApiEnvelope<MangaItem[]>;
+    };
+    announcement: {
+      list: ApiEnvelope<AnnouncementListItem[]>;
+      detail?: ApiEnvelope<AnnouncementDetailItem>;
+    };
+  };
+  cached_at?: string;
+}
+
+// =============================================================================
+// TAXONOMY (untuk detail response)
+// =============================================================================
+export interface TaxonomyItem {
+  taxonomy_id: number;
+  slug: string;
+  name: string;
+}
+
+export interface TaxonomyMap {
+  Artist?: TaxonomyItem[];
+  Author?: TaxonomyItem[];
+  Format?: TaxonomyItem[];
+  Genre?: TaxonomyItem[];
+  Type?: TaxonomyItem[];
+  [key: string]: TaxonomyItem[] | undefined;
+}
+
+// =============================================================================
+// DETAIL API RESPONSE — diperbarui match JSON response real
+// =============================================================================
+export interface DetailApiResponse {
+  status: boolean;           // ← tambah (JSON pakai status, bukan success)
+  success: boolean;          // ← tetap ada buat backward compat
+  data: {
+    // Identitas
+    id?: number;
+    manga_id?: string;
     title?: string;
     slug?: string;
     alternative_title?: string;
+
+    // Media
     thumb?: string;
     thumbnail?: string;
+    cover_image_url?: string;
+    cover_portrait_url?: string;
+
+    // Metadata
     type?: string;
-    author?: string;
-    authors?: string[];
-    artist?: string;
-    artists?: string[];
-    status?: string;
-    genres?: (string | { name: string; url?: string })[];
+    country_id?: string;
+    status?: string | number;
+    release_year?: string;
+    year?: string;
+    released?: string;
+
+    // Rating & Stats
+    rating?: string;
+    user_rate?: number | string;
+    views?: string;
+    view_count?: number;
+    followers?: string;
+    bookmark_count?: number;
+    rank?: number;
+
+    // Sinopsis
     synopsis?: string;
+    description?: string;
+
+    // Taxonomy (Author, Artist, Genre, dll)
+    taxonomy?: TaxonomyMap;
+
+    // Chapter terakhir
+    latest_chapter_id?: string;
+    latest_chapter_number?: number | string;
+    latest_chapter_time?: string;
+
+    // Chapter list
     chapters?: {
-      index?: number;
-      chapter_number?: string;
-      chapter?: string;
+      chapter_id?: string;
+      manga_id?: string;
+      chapter_title?: string;
+      chapter_number?: string | number;
+      chapter?: string | number;
       chapter_url?: string;
       link?: string;
       slug?: string;
       chapter_slug?: string;
       release_date?: string;
-      views?: string;
+      views?: string | number;
+      thumbnail_image_url?: string;
       pages?: number;
     }[];
-    views?: string;
-    followers?: string;
-    release_year?: string;
-    year?: string;
-    released?: string;
-    total_chapters?: number;
+
+    // Related
+    related_series?: RelatedSeries[];
+    recommendations?: MangaItem[];
+    is_recommended?: boolean;
+
+    // Timestamp
+    created_at?: string;
     updated_at?: string;
     last_updated?: string;
     updated_on?: string;
-    related_series?: RelatedSeries[];
-    recommendations?: MangaItem[];
+    deleted_at?: string | null;
+  };
+  cached?: boolean;
+  cached_at?: string;
+}
+
+export interface ReadApiResponse {
+  retcode?: number;
+  message?: string;
+  meta?: {
+    request_id?: string;
+    timestamp?: number;
+    process_time?: string;
+  };
+  success?: boolean;
+  data: {
+    chapter_id?: string;
+    manga_id?: string;
+    chapter_number?: number | string;
+    chapter_title?: string;
+    base_url?: string;
+    base_url_low?: string;
+    thumbnail_image_url?: string;
+    view_count?: number;
+    prev_chapter_id?: string | null;
+    prev_chapter_number?: number | null;
+    next_chapter_id?: string | null;
+    next_chapter_number?: number | null;
+    images: string[] | { index: number; url: string; alt: string }[];
+    release_date?: string;
+    created_at?: string;
+    updated_at?: string;
   };
   cached?: boolean;
 }
 
-export interface ReadApiResponse {
-  success: boolean;
-  data: {
-    title: string;
-    series_title: string;
-    series_slug: string;
-    series_url?: string;
-    chapter_number: string;
-    images: { index: number; url: string; alt: string }[];
-    prev_chapter: string | null;
-    next_chapter: string | null;
-    chapters?: { slug: string; number: string; url: string }[];
-  };
-  cached?: boolean;
-}
 
 export interface PustakaApiResponse {
   success: boolean;
@@ -125,21 +252,27 @@ async function fetcher<T>(endpoint: string): Promise<T | null> {
   }
 }
 
+// =============================================================================
+// getHome
+// =============================================================================
 export async function getHome(): Promise<HomeApiResponse | null> {
-  const res = await fetcher<HomeApiResponse>("/home");
-  if (res?.data) {
-    res.data.popular_today = applyFlagsToItems(res.data.popular_today);
-    res.data.project_update = applyFlagsToItems(res.data.project_update);
-    res.data.latest_update = applyFlagsToItems(res.data.latest_update);
-    res.data.recommendations = applyFlagsToItems(res.data.recommendations);
-  }
-  return res;
+  return fetcher<HomeApiResponse>("/home");
 }
 
+// =============================================================================
+// getDetail — diperbarui: handle field baru + defensif
+// =============================================================================
 export async function getDetail(slug: string): Promise<DetailApiResponse | null> {
   const res = await fetcher<DetailApiResponse>(`/detail/${slug}`);
   if (res?.data) {
-    res.data.type = formatMangaType(res.data.type);
+    // Format type kalau ada
+    if (res.data.type) {
+      res.data.type = formatMangaType(res.data.type);
+    }
+    // Format country_id jadi type kalau type kosong
+    if (!res.data.type && res.data.country_id) {
+      res.data.type = formatMangaType(res.data.country_id);
+    }
     if (res.data.recommendations) {
       res.data.recommendations = applyFlagsToItems(res.data.recommendations);
     }
@@ -148,7 +281,7 @@ export async function getDetail(slug: string): Promise<DetailApiResponse | null>
 }
 
 export async function getRead(chapterSlug: string): Promise<ReadApiResponse | null> {
-  return fetcher<ReadApiResponse>(`/read/${chapterSlug}`);
+  return fetcher<ReadApiResponse>(`/chapter/${chapterSlug}`);
 }
 
 export async function searchManga(q: string, page = 1): Promise<SearchApiResponse | null> {
@@ -185,16 +318,17 @@ export async function filterManga(params: {
   sorttime?: string;
   page?: number;
 }): Promise<PustakaApiResponse | null> {
+  // Nama param di sini disesuaikan ke yang dipahami cnest-shi /filter
+  // (type, genre[], status, order, page) — bukan nama lama (tipe/orderby/dst).
   const qs = new URLSearchParams();
-  if (params.tipe) qs.set("tipe", params.tipe);
-  if (params.genre) qs.set("genre", params.genre);
-  if (params.genre2) qs.set("genre2", params.genre2);
+  if (params.tipe) qs.set("type", params.tipe);
+  if (params.genre) qs.append("genre[]", params.genre);
+  if (params.genre2) qs.append("genre[]", params.genre2);
   if (params.status) qs.set("status", params.status);
-  if (params.orderby) qs.set("orderby", params.orderby);
-  if (params.sorttime) qs.set("sorttime", params.sorttime);
+  if (params.orderby) qs.set("order", params.orderby);
   if (params.page) qs.set("page", String(params.page));
 
-  const res = await fetcher<PustakaApiResponse>(`/pustaka?${qs.toString()}`);
+  const res = await fetcher<PustakaApiResponse>(`/filter?${qs.toString()}`);
   if (res?.data?.comics) {
     res.data.comics = applyFlagsToItems(res.data.comics);
   }
@@ -205,16 +339,12 @@ export async function getHealth(): Promise<Record<string, unknown> | null> {
   return fetcher<Record<string, unknown>>("/");
 }
 
-// Key yang WAJIB tetap ada walau namanya mengandung "cache"/"tsukinest"/"komiku",
-// karena isinya preferensi & riwayat baca user, bukan cache hasil fetch API.
-// (Hampir semua key di app ini diawali "tsukinest_", jadi filter substring lama
-// tanpa whitelist ini efektif menghapus HAMPIR SEMUA local storage, bukan cuma cache.)
 const PROTECTED_STORAGE_KEYS = new Set([
-  "tsukinest_recent_reads",   // riwayat baca terakhir (halaman home)
-  "tsukinest_read_chapters",  // penanda chapter yang sudah dibaca
-  "tsukinest_theme",          // mode baca (reading mode)
-  "tsukinest_color_scheme",   // tema warna aplikasi
-  "tsukinest_seen_notifs_v2", // notifikasi yang sudah dilihat
+  "tsukinest_recent_reads",
+  "tsukinest_read_chapters",
+  "tsukinest_theme",
+  "tsukinest_color_scheme",
+  "tsukinest_seen_notifs_v2",
 ]);
 
 export function clearCacheLocal(): { success: boolean; message: string } {

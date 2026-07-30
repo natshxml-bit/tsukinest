@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 
 import { type MangaItem, getGenre } from "@/lib/api";
+import { API_BASE_URL } from "@/constants/api";
 import { useAccent } from "@/lib/accent";
 import { cn } from "@/utils/cn";
 import { cleanThumb } from "@/utils/image";
@@ -229,9 +230,9 @@ export default function GenrePage() {
     let cancelled = false;
     async function fetchGenreList() {
       try {
-        const res = await fetch("https://cnest.up.railway.app/api/genres");
+        const res = await fetch(`${API_BASE_URL}/genres`);
         const json = await res.json();
-        if (!cancelled && json.success && Array.isArray(json.data)) setGenreList(json.data);
+        if (!cancelled && json.status && Array.isArray(json.data)) setGenreList(json.data);
       } catch { /* ignore */ }
     }
     fetchGenreList();

@@ -21,6 +21,22 @@ interface Chapter {
   release_date: string;
 }
 
+/* ─── Helpers ─── */
+function toString(val: unknown): string {
+  if (val == null) return "";
+  return String(val);
+}
+
+function getTaxonomyNames(data: Record<string, unknown>, key: string): string[] {
+  const taxonomy = data.taxonomy as Record<string, { name: string }[]> | undefined;
+  return taxonomy?.[key]?.map((t) => t.name) || [];
+}
+
+function getChapterNumberValue(chapterNumber: string): number {
+  const cleaned = chapterNumber.replace(/[^0-9.]/g, "");
+  return parseFloat(cleaned) || 0;
+}
+
 // API detail (/detail/{slug}) balikin field chapters[] dengan nama field yang
 // gak konsisten antar sumber (scraped backend) — kadang chapter_number,
 // kadang cuma "chapter"; kadang slug, kadang chapter_slug. Baca defensif
@@ -28,11 +44,71 @@ interface Chapter {
 function normalizeChapter(ch: unknown, index: number): Chapter {
   const raw = (ch ?? {}) as Record<string, unknown>;
   return {
-    slug: (raw.slug as string) || (raw.chapter_slug as string) || "",
+    slug:
+      (raw.slug as string) ||
+      (raw.chapter_slug as string) ||
+      (raw.chapter_id as string) ||     // ← TAMBAH INI
+      "",
     chapter_number:
-      (raw.chapter_number as string) || (raw.chapter as string) || `Ch. ${index + 1}`,
+      toString(raw.chapter_number) ||
+      toString(raw.chapter) ||
+      `Ch. ${index + 1}`,
     release_date: (raw.release_date as string) || "",
   };
+}
+
+
+/* ─── Normalize raw API data to MangaDetailType ─── */
+function normalizeMangaData(raw: Record<string, unknown>): MangaDetailType {
+  const authors = getTaxonomyNames(raw, "Author");
+  const artists = getTaxonomyNames(raw, "Artist");
+  const genresFromTaxonomy = getTaxonomyNames(raw, "Genre");
+
+  return {
+    ...raw,
+    title: (raw.title as string) || "Judul Tidak Tersedia",
+    alternative_title: (raw.alternative_title as string) || undefined,
+    thumb:
+      (raw.cover_image_url as string) ||
+      (raw.cover_portrait_url as string) ||
+      (raw.thumb as string) ||
+      (raw.thumbnail as string) ||
+      "",
+    synopsis:
+      (raw.description as string) ||
+      (raw.synopsis as string) ||
+      "Sinopsis belum tersedia untuk seri ini.",
+    author: authors[0] || (raw.author as string) || undefined,
+    authors: authors.length > 0 ? authors : (raw.authors as string[]) || [],
+    artist: artists[0] || (raw.artist as string) || undefined,
+    artists: artists.length > 0 ? artists : (raw.artists as string[]) || [],
+    genres:
+      genresFromTaxonomy.length > 0
+        ? genresFromTaxonomy
+        : (raw.genres as string[]) || [],
+    type: (raw.country_id as string) || (raw.type as string) || undefined,
+    status: raw.status as string | undefined,
+    rating:
+      toString(raw.user_rate) || (raw.rating as string) || undefined,
+    views: toString(raw.view_count) || (raw.views as string) || "0",
+    followers:
+      toString(raw.bookmark_count) || (raw.followers as string) || "0",
+    release_year:
+      (raw.release_year as string) ||
+      (raw.year as string) ||
+      (raw.released as string) ||
+      undefined,
+    updated_at:
+      (raw.updated_at as string) ||
+      (raw.last_updated as string) ||
+      (raw.updated_on as string) ||
+      undefined,
+    chapters: ((raw.chapters as Record<string, unknown>[]) || []).map(
+      normalizeChapter
+    ),
+    total_chapters: (raw.chapters as unknown[])?.length,
+    related_series: (raw.related_series as MangaDetailType["related_series"]) || [],
+  } as MangaDetailType;
 }
 
 /* ─── Hook ─── */
@@ -56,10 +132,6 @@ export function useMangaDetail() {
 
   /* ═══════════════════════════════════════════════════
      FIREBASE: BOOKMARK & LIKE
-     Pakai users/{uid}/bookmarks/{slug} & users/{uid}/likes/{slug} —
-     subcollection yang sama dengan explore/page.tsx & library/page.tsx,
-     dan yang dicover firestore.rules. Doc ID = slug, jadi cek
-     ada/gaknya tinggal onSnapshot ke doc-nya langsung (gak perlu query).
      ═══════════════════════════════════════════════════ */
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
@@ -136,17 +208,11 @@ export function useMangaDetail() {
 
   /* ═══════════════════════════════════════════════════
      FIREBASE: READING PROGRESS
-     Pakai users/{uid}/reading_progress/{slug} — subcollection yang
-     sama dicover firestore.rules dan dipakai useReadingProgress.ts
-     (ChapterReader). Skema field disamain (readChapters, lastReadChapter,
-     lastReadPage, updatedAt) biar dua hook ini nulis ke dokumen &
-     bentuk data yang konsisten, bukan dua sistem progress yang beda.
      ═══════════════════════════════════════════════════ */
   const [readChapters, setReadChapters] = useState<string[]>([]);
   const [lastReadChapterSlug, setLastReadChapterSlug] = useState<string | null>(null);
   const [lastReadPage, setLastReadPage] = useState(0);
 
-  // Real-time listener untuk reading progress
   useEffect(() => {
     if (!user?.uid || !slug) {
       setReadChapters([]);
@@ -171,7 +237,6 @@ export function useMangaDetail() {
         }
       },
       () => {
-        // Error fallback
         setReadChapters([]);
         setLastReadChapterSlug(null);
         setLastReadPage(0);
@@ -181,13 +246,7 @@ export function useMangaDetail() {
     return () => unsub();
   }, [user?.uid, slug]);
 
-  /* ─── Mark Chapter as Opened ───
-     Dipanggil pas user KLIK buat buka chapter (dari list / tombol lanjutkan).
-     Ini CUMA nyatet chapter yang lagi dibuka (buat badge "Terakhir" & posisi
-     lanjutkan baca) — BUKAN tanda udah selesai dibaca. Status "Selesai"
-     (readChapters) cuma boleh diisi dari ChapterReader, pas user beneran
-     nyampe halaman/scroll terakhir chapter itu. Jangan tambahin arrayUnion
-     ke readChapters di sini lagi, biar gak "Selesai" duluan sebelum dibaca. */
+  /* ─── Mark Chapter as Opened ─── */
   const markChapterAsRead = useCallback(
     async (chapterSlug: string) => {
       if (!user?.uid || !slug) return;
@@ -220,7 +279,8 @@ export function useMangaDetail() {
           setError("Data tidak ditemukan.");
           setData(null);
         } else {
-          setData(res.data as MangaDetailType);
+          const normalized = normalizeMangaData(res.data as Record<string, unknown>);
+          setData(normalized);
           setError(null);
         }
       })
@@ -247,8 +307,8 @@ export function useMangaDetail() {
   /* ─── Derived: sorted chapters ─── */
   const sortedChapters = useMemo(() => {
     return [...chapters].sort((a, b) => {
-      const numA = parseFloat(a.chapter_number.replace(/[^0-9.]/g, "")) || 0;
-      const numB = parseFloat(b.chapter_number.replace(/[^0-9.]/g, "")) || 0;
+      const numA = getChapterNumberValue(a.chapter_number);
+      const numB = getChapterNumberValue(b.chapter_number);
       return numB - numA;
     });
   }, [chapters]);
@@ -287,7 +347,7 @@ export function useMangaDetail() {
     return sortedChapters[0] || null;
   }, [sortedChapters]);
 
-  /* ─── Last Read Chapter (for "Terakhir" tag) ─── */
+  /* ─── Last Read Chapter ─── */
   const lastReadChapter = useMemo(() => {
     if (!lastReadChapterSlug) return null;
     return chapters.find((c) => c.slug === lastReadChapterSlug) || null;
@@ -305,7 +365,7 @@ export function useMangaDetail() {
   const settingsRef = useRef<HTMLDivElement>(null);
   const chapterListRef = useRef<HTMLDivElement>(null);
 
-  /* ─── Reading mode (localStorage — user preference, tetap) ─── */
+  /* ─── Reading mode (localStorage) ─── */
   useEffect(() => {
     if (typeof window === "undefined") return;
     const saved = localStorage.getItem("reading_mode");
@@ -319,7 +379,7 @@ export function useMangaDetail() {
     localStorage.setItem("reading_mode", mode);
   }, []);
 
-  /* ─── Image quality (localStorage — user preference, tetap) ─── */
+  /* ─── Image quality (localStorage) ─── */
   useEffect(() => {
     if (typeof window === "undefined") return;
     const saved = localStorage.getItem("image_quality");
@@ -357,14 +417,19 @@ export function useMangaDetail() {
 
   /* ─── Derived: authors, artists, genres ─── */
   const authors = useMemo(() => {
-    if (!data?.author) return [];
-    return Array.isArray(data.author) ? data.author : [data.author];
-  }, [data?.author]);
+    if (!data) return [];
+    // Coba baca dari authors (array) dulu, fallback ke author (string)
+    if (Array.isArray(data.authors) && data.authors.length > 0) return data.authors;
+    if (data.author) return [data.author];
+    return [];
+  }, [data]);
 
   const artists = useMemo(() => {
-    if (!data?.artist) return [];
-    return Array.isArray(data.artist) ? data.artist : [data.artist];
-  }, [data?.artist]);
+    if (!data) return [];
+    if (Array.isArray(data.artists) && data.artists.length > 0) return data.artists;
+    if (data.artist) return [data.artist];
+    return [];
+  }, [data]);
 
   const genres = useMemo(() => {
     if (!data?.genres) return [];
@@ -392,22 +457,15 @@ export function useMangaDetail() {
 
   /* ─── Return ─── */
   return {
-    // Data
     slug,
     data,
     loading,
     error,
-
-    // Auth
     user,
-
-    // Bookmark & Like
     isBookmarked,
     isLiked,
     toggleBookmark,
     toggleLike,
-
-    // Chapters
     chapters,
     sortedChapters,
     shownChapters,
@@ -417,8 +475,6 @@ export function useMangaDetail() {
     latestChapter,
     lastReadChapter,
     displayTotalChapters,
-
-    // Chapter controls
     chapterFilter,
     setChapterFilter,
     chapterSort,
@@ -426,15 +482,9 @@ export function useMangaDetail() {
     showAllChapters,
     setShowAllChapters,
     markChapterAsRead,
-
-    // Reading Progress
     lastReadPage,
-
-    // Tabs
     activeTab,
     setActiveTab,
-
-    // Settings
     showSettings,
     setShowSettings,
     settingsRef,
@@ -442,27 +492,17 @@ export function useMangaDetail() {
     saveReadingMode,
     imageQuality,
     setImageQuality,
-
-    // Share
     showShareModal,
     setShowShareModal,
     handleShare,
     copied,
     copyToClipboard,
-
-    // Notification
     showNotification,
     setShowNotification,
-
-    // Navigation
     handleBack,
-
-    // Derived
     authors,
     artists,
     genres,
-
-    // Refs
     chapterListRef,
   };
 }

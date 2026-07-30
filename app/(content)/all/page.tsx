@@ -17,7 +17,10 @@ type MangaItem = {
   is_hot: boolean;
 };
 
-const BASE_URL = "https://nest-network.up.railway.app";
+import { API_BASE_URL } from "@/constants/api";
+
+// Lewat proxy (/api/proxy) -> cnest-shi. Backend lama (nest-network) udah pensiun.
+const BASE_URL = API_BASE_URL;
 const KITSU_CACHE_KEY = "tsukinest_kitsu_cache_v1";
 const JIKAN_CACHE_KEY = "tsukinest_jikan_cache_v1";
 const ANILIST_CACHE_KEY = "tsukinest_anilist_cache_v1";

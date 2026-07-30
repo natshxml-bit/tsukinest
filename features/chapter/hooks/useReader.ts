@@ -1,4 +1,5 @@
 "use client";
+
 // features/chapter/hooks/useReader.ts
 // Core reader state: data fetching, pagination, scroll progress, settings.
 
@@ -86,8 +87,9 @@ export function useReader() {
         chapSeriesSlug ||= chapterSlug.replace(/-(?:chapter|ch|bab)-?\d+(?:-\d+)?$/i, "");
         chapNum ||= chapterSlug.match(/\d+(?:-\d+)?$/)?.[0].replace("-", ".") || "?";
 
-        const prev = cleanNavigationSlug(ch.prev_chapter);
-        const next = cleanNavigationSlug(ch.next_chapter);
+        // FIX: Handle both prev_chapter/next_chapter and prev_chapter_id/next_chapter_id
+        const prev = cleanNavigationSlug(ch.prev_chapter_id || ch.prev_chapter);
+        const next = cleanNavigationSlug(ch.next_chapter_id || ch.next_chapter);
 
         const rawChapters: ReadChapterRef[] = ch.chapters || [];
         const seen = new Set<string>();
@@ -105,6 +107,9 @@ export function useReader() {
             series_slug: chapSeriesSlug,
             prev_chapter: prev,
             next_chapter: next,
+            // FIX: Tambahkan data _id ke state agar bisa diakses oleh fungsi navigasi
+            prev_chapter_id: ch.prev_chapter_id || null,
+            next_chapter_id: ch.next_chapter_id || null,
             images,
             chapters: uniqueChapters,
           });
@@ -147,21 +152,23 @@ export function useReader() {
     (targetSlug: string | null) => {
       const clean = cleanNavigationSlug(targetSlug);
       if (!clean) return;
-      const targetSeriesSlug = data?.series_slug || seriesSlug;
+      // FIX: Pastikan series slug selalu dapat dari salah satu fallback, termasuk params?.slug
+      const targetSeriesSlug = data?.series_slug || seriesSlug || (params?.slug as string);
       setData(null);
       setLoading(true);
       window.scrollTo(0, 0);
       router.push(`/chapter/${targetSeriesSlug}/${clean}`);
     },
-    [router, data, seriesSlug]
+    [router, data, seriesSlug, params?.slug]
   );
 
   const nextPage = useCallback(() => {
     if (!data) return;
     if (page < data.images.length - 1) {
       setPage((p) => p + 1);
-    } else if (data.next_chapter) {
-      handleNavigation(data.next_chapter);
+    } else if (data.next_chapter || data.next_chapter_id) {
+      // FIX: Support fallback ke next_chapter_id jika next_chapter tidak ada
+      handleNavigation(data.next_chapter || data.next_chapter_id || null);
     }
   }, [data, page, handleNavigation]);
 
@@ -169,8 +176,9 @@ export function useReader() {
     if (!data) return;
     if (page > 0) {
       setPage((p) => p - 1);
-    } else if (data.prev_chapter) {
-      handleNavigation(data.prev_chapter);
+    } else if (data.prev_chapter || data.prev_chapter_id) {
+      // FIX: Support fallback ke prev_chapter_id jika prev_chapter tidak ada
+      handleNavigation(data.prev_chapter || data.prev_chapter_id || null);
     }
   }, [data, page, handleNavigation]);
 

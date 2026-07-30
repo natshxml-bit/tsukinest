@@ -6,7 +6,10 @@ import { useRouter } from "next/navigation";
 import { useAccent } from "@/lib/accent";
 import { ArrowLeft, Star, Clock, ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
 
-const BASE_URL = "https://nest-network.up.railway.app";
+import { API_BASE_URL } from "@/constants/api";
+
+// Lewat proxy (/api/proxy) -> cnest-shi. Backend lama (nest-network) udah pensiun.
+const BASE_URL = API_BASE_URL;
 
 // ─── UTILS ───
 function cn(...classes: (string | false | null | undefined)[]) {
