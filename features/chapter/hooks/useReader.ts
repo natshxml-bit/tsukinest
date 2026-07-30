@@ -101,21 +101,21 @@ export function useReader() {
 
         if (!cancelled) {
           setData({
-  title: ch.title || `Chapter ${chapNum}`,
-  chapter_number: chapNum,
-  series_title: chapTitle,
-  series_slug: chapSeriesSlug,
-  prev_chapter: prev,
-  next_chapter: next,
-  images,
-  chapters: uniqueChapters,
-});
+            title: ch.title || `Chapter ${chapNum}`,
+            chapter_number: chapNum,
+            series_title: chapTitle,
+            series_slug: chapSeriesSlug,
+            prev_chapter: prev,
+            next_chapter: next,
+            images,
+            chapters: uniqueChapters,
+          });
 
-setPage(0);
-setBrokenImages(new Set());
-setImgLoaded(false);
+          setPage(0);
+          setBrokenImages(new Set());
+          setImgLoaded(false);
 
-setTimeout(() => window.scrollTo(0, 0), 100);
+          setTimeout(() => window.scrollTo(0, 0), 100);
         }
       } catch {
         // data stays null → error state rendered
@@ -165,9 +165,9 @@ setTimeout(() => window.scrollTo(0, 0), 100);
     if (!data) return;
     if (page < data.images.length - 1) {
       setPage((p) => p + 1);
-    } else if (data.next_chapter || data.next_chapter_id) {
-      // FIX: Support fallback ke next_chapter_id jika next_chapter tidak ada
-      handleNavigation(data.next_chapter || data.next_chapter_id || null);
+    } else if (data.next_chapter) {
+      // The fallback from next_chapter_id is already handled in the fetch effect
+      handleNavigation(data.next_chapter);
     }
   }, [data, page, handleNavigation]);
 
@@ -175,9 +175,9 @@ setTimeout(() => window.scrollTo(0, 0), 100);
     if (!data) return;
     if (page > 0) {
       setPage((p) => p - 1);
-    } else if (data.prev_chapter || data.prev_chapter_id) {
-      // FIX: Support fallback ke prev_chapter_id jika prev_chapter tidak ada
-      handleNavigation(data.prev_chapter || data.prev_chapter_id || null);
+    } else if (data.prev_chapter) {
+      // The fallback from prev_chapter_id is already handled in the fetch effect
+      handleNavigation(data.prev_chapter);
     }
   }, [data, page, handleNavigation]);
 
