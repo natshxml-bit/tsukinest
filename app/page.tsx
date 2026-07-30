@@ -33,14 +33,6 @@ type MangaItem = ImportedMangaItem & {
 
 type AccentStyle = Record<string, string>;
 
-function getFlagCode(type: string): string | null {
-  const t = type.toLowerCase();
-  if (t === "manhwa") return "kr";
-  if (t === "manhua") return "cn";
-  if (t === "manga") return "jp";
-  return null;
-}
-
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour >= 5 && hour < 12) return { text: "Selamat Pagi", icon: "☀️" };
@@ -408,32 +400,24 @@ function SectionHeader({ title, icon: Icon, actionLabel, actionHref = "#", right
 }
 
 // =============================================================================
-// BADGE COMPONENT — FIXED: gak overlap, width konsisten
+// BADGE COMPONENT — FIXED: Hapus gambar flagcdn, pakai bawaan teks saja
 // =============================================================================
 
 function TypeBadge({ type, className = "" }: { type: string; className?: string }) {
-  const flagCode = getFlagCode(type);
   const displayType = formatMangaType(type);
+  
   return (
     <span className={cn(
       "px-1.5 py-[2px] rounded-md text-[8px] font-bold text-white/90 uppercase bg-black/70 border border-white/10 tracking-wide flex items-center gap-1 shrink-0",
       className
     )}>
-      {flagCode && (
-        <img
-          src={`https://flagcdn.com/w16/${flagCode}.png`}
-          alt=""
-          className="w-3 h-2 rounded-[1px] object-cover shrink-0"
-          loading="lazy"
-        />
-      )}
       <span className="truncate max-w-[50px]">{displayType}</span>
     </span>
   );
 }
 
 // =============================================================================
-// MANGA CARD — FIXED: Badge layout rapi, gak overlap
+// MANGA CARD
 // =============================================================================
 
 const MangaCard = memo(function MangaCard({ item, variant = "default", accentStyle }: {
@@ -446,7 +430,7 @@ const MangaCard = memo(function MangaCard({ item, variant = "default", accentSty
           <SmartImage src={item.thumb || "/no-image.png"} alt={item.title} title={item.title} fill loading="lazy" decoding="async" className="object-cover" sizes="(max-width: 768px) 33vw, 20vw" unoptimized />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
-          {/* ✅ Badge Container — FIXED layout */}
+          {/* ✅ Badge Container */}
           <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1.5 pointer-events-none z-10">
             <div className="flex items-center gap-1.5 min-w-0">
               <TypeBadge type={item.type} />
@@ -477,7 +461,7 @@ const MangaCard = memo(function MangaCard({ item, variant = "default", accentSty
 });
 
 // =============================================================================
-// NEW RELEASE CARD — FIXED
+// NEW RELEASE CARD
 // =============================================================================
 
 const NewReleaseCard = memo(function NewReleaseCard({ item, accentStyle }: { item: MangaItem; accent?: string; accentStyle: AccentStyle }) {
@@ -490,7 +474,7 @@ const NewReleaseCard = memo(function NewReleaseCard({ item, accentStyle }: { ite
           <div className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold text-white uppercase", accentStyle.bg)}>NEW</div>
         </div>
 
-        {/* ✅ Badge — FIXED */}
+        {/* ✅ Badge */}
         <div className="absolute top-2 left-2 z-10">
           <TypeBadge type={item.type} />
         </div>
@@ -514,7 +498,7 @@ const NewReleaseCard = memo(function NewReleaseCard({ item, accentStyle }: { ite
 });
 
 // =============================================================================
-// PROJECT CARD — FIXED
+// PROJECT CARD
 // =============================================================================
 
 const ProjectCard = memo(function ProjectCard({ item, accentStyle }: { item: MangaItem; index?: number; accent?: string; accentStyle: AccentStyle }) {
@@ -532,7 +516,7 @@ const ProjectCard = memo(function ProjectCard({ item, accentStyle }: { item: Man
       <div className="flex-1 min-w-0 py-0.5">
         <h4 className="text-sm font-medium text-white line-clamp-2 leading-snug mb-1">{item.title}</h4>
         <div className="flex items-center gap-2 text-xs text-neutral-500 mb-1 flex-wrap">
-          {/* ✅ Badge — FIXED */}
+          {/* ✅ Badge */}
           <TypeBadge type={item.type} className="text-[8px] px-1 py-[1px]" />
           <span className="flex items-center gap-1 shrink-0">
             <Clock className="w-3 h-3" /> {item.latest_chapter}
