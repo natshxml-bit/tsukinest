@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
 import { getMessaging } from "firebase-admin/messaging";
+import { verifyIdToken } from "@/lib/verifyIdToken";
+
+export const runtime = "nodejs";
 
 // Registrasi FCM token dari app APK: subscribe token ke topic
 // "tsukinest_all" supaya broadcast dari admin langsung nyampe
@@ -44,9 +46,9 @@ export async function POST(request: NextRequest) {
   if (!idToken) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
-  try {
-    await getAuth(adminApp).verifyIdToken(idToken);
-  } catch {
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "";
+  const uid = await verifyIdToken(idToken, projectId);
+  if (!uid) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
