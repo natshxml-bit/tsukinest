@@ -165,9 +165,11 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
                   </div>
 
                   {/* CTA */}
-                  <span className={cn("inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-white text-[10px] font-bold", accentStyle.bg)}>
-                    Baca <ChevronRight className="w-3 h-3" />
-                  </span>
+                  <div className="flex justify-end">
+                    <span className={cn("inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-white text-[10px] font-bold", accentStyle.bg)}>
+                      Baca <ChevronRight className="w-3 h-3" />
+                    </span>
+                  </div>
                 </div>
               </div>
             </Link>
