@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { verifyIdToken } from "@/lib/verifyIdToken";
 
@@ -60,6 +61,18 @@ export async function POST(request: NextRequest) {
 
   try {
     await getMessaging(adminApp).subscribeToTopic([token], "tsukinest_all");
+    await getFirestore(adminApp)
+      .collection("devices")
+      .doc(token)
+      .set(
+        {
+          uid,
+          topic: "tsukinest_all",
+          platform: "android",
+          lastSeenAt: new Date(),
+        },
+        { merge: true }
+      );
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("fcm-register: gagal subscribe topic:", err);
