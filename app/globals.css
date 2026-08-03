@@ -44,3 +44,12 @@ body {
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+
+@keyframes hero-rail {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
