@@ -138,15 +138,8 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
                     {visible[idx].title}
                   </h2>
 
-                  {/* Synopsis */}
-                  {visible[idx].synopsis && (
-                    <p className="text-neutral-300 text-[11px] sm:text-xs md:text-sm leading-relaxed line-clamp-2 mb-2 max-w-2xl">
-                      {visible[idx].synopsis}
-                    </p>
-                  )}
-
                   {/* Metadata */}
-                  <div className="flex items-center gap-2 flex-wrap mb-3">
+                  <div className="flex items-center gap-2 flex-wrap mb-2">
                     <span className="px-1.5 py-0.5 rounded-md bg-white/10 text-white text-[9px] font-bold border border-white/5">
                       {formatMangaType(visible[idx].type)}
                     </span>
@@ -163,6 +156,13 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
                       {visible[idx].latest_chapter}
                     </span>
                   </div>
+
+                  {/* Synopsis */}
+                  {visible[idx].synopsis && (
+                    <p className="text-neutral-300 text-[11px] sm:text-xs md:text-sm leading-relaxed line-clamp-2 mb-3 max-w-2xl">
+                      {visible[idx].synopsis}
+                    </p>
+                  )}
 
                   {/* CTA */}
                   <div className="flex justify-end">

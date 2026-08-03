@@ -11,6 +11,7 @@ import { AppProvider } from "@/providers/AppProvider";
 import BackButtonHandler from "@/components/BackButtonHandler";
 import SplashScreenHandler from "@/components/SplashScreenHandler";
 import PresenceTracker from "@/components/PresenceTracker";
+import PushNotificationsHandler from "@/components/PushNotificationsHandler";
 import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({
@@ -127,6 +128,9 @@ export default function RootLayout({
 
             {/* Sync data user + heartbeat online status (gak render apa-apa) */}
             <PresenceTracker />
+
+            {/* Push notification native APK (gak render apa-apa) */}
+            <PushNotificationsHandler />
 
             {/* Capacitor Android Back Button */}
             <BackButtonHandler />
