@@ -43,47 +43,54 @@ async function isAdmin(adminApp: App, idToken: string): Promise<boolean> {
 }
 
 export async function POST(request: NextRequest) {
-  const adminApp = getAdminApp();
-  if (!adminApp) {
-    return NextResponse.json(
-      { ok: false, error: "FCM belum dikonfigurasi. Set FIREBASE_SERVICE_ACCOUNT di env." },
-      { status: 501 }
-    );
-  }
-
-  const authHeader = request.headers.get("authorization") ?? "";
-  const idToken = authHeader.replace(/^Bearer\s+/i, "");
-  if (!idToken) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-  }
-  if (!(await isAdmin(adminApp, idToken))) {
-    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
-  }
-
-  const body = (await request.json().catch(() => ({}))) as {
-    title?: string;
-    message?: string;
-    slug?: string;
-  };
-  const title = body.title?.trim();
-  const message = body.message?.trim();
-  if (!title || !message) {
-    return NextResponse.json({ ok: false, error: "title & message wajib diisi" }, { status: 400 });
-  }
-
   try {
-    await getMessaging(adminApp).send({
-      topic: "tsukinest_all",
-      notification: { title, body: message },
-      data: {
-        type: "announcement",
-        slug: body.slug?.trim() ?? "",
-      },
-      android: { priority: "high" },
-    });
-    return NextResponse.json({ ok: true });
+    const adminApp = getAdminApp();
+    if (!adminApp) {
+      return NextResponse.json(
+        { ok: false, error: "FCM belum dikonfigurasi. Set FIREBASE_SERVICE_ACCOUNT di env." },
+        { status: 501 }
+      );
+    }
+
+    const authHeader = request.headers.get("authorization") ?? "";
+    const idToken = authHeader.replace(/^Bearer\s+/i, "");
+    if (!idToken) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
+    if (!(await isAdmin(adminApp, idToken))) {
+      return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      title?: string;
+      message?: string;
+      slug?: string;
+    };
+    const title = body.title?.trim();
+    const message = body.message?.trim();
+    if (!title || !message) {
+      return NextResponse.json({ ok: false, error: "title & message wajib diisi" }, { status: 400 });
+    }
+
+    try {
+      await getMessaging(adminApp).send({
+        topic: "tsukinest_all",
+        notification: { title, body: message },
+        data: {
+          type: "announcement",
+          slug: body.slug?.trim() ?? "",
+        },
+        android: { priority: "high" },
+      });
+      return NextResponse.json({ ok: true });
+    } catch (err) {
+      console.error("broadcast: gagal kirim FCM:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      return NextResponse.json({ ok: false, error: `Gagal kirim push: ${msg}` }, { status: 500 });
+    }
   } catch (err) {
-    console.error("broadcast: gagal kirim FCM:", err);
-    return NextResponse.json({ ok: false, error: "Gagal kirim push" }, { status: 500 });
+    console.error("broadcast: error tak terduga:", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ ok: false, error: `Internal: ${msg}` }, { status: 500 });
   }
 }

@@ -330,12 +330,16 @@ function BroadcastSection({ accentStyle }: { accentStyle: { bg: string; text: st
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
           body: JSON.stringify({ title: title.trim(), message: message.trim(), slug: slug.trim() }),
         });
-        const data = await res.json();
-        pushInfo = res.ok
-          ? "Push terkirim ke semua perangkat APK."
-          : data?.error || "Push gagal dikirim.";
-      } catch {
-        pushInfo = "Push gagal dikirim.";
+        let errText = "";
+        try {
+          const data = await res.json();
+          errText = data?.error || (res.ok ? "" : JSON.stringify(data));
+        } catch {
+          errText = `HTTP ${res.status} (respon bukan JSON)`;
+        }
+        pushInfo = res.ok ? "Push terkirim ke semua perangkat APK." : `Push gagal: ${errText}`;
+      } catch (err) {
+        pushInfo = `Push gagal (network): ${err instanceof Error ? err.message : String(err)}`;
       }
 
       setTitle(""); setMessage(""); setSlug("");
