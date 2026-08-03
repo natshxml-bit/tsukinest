@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { Star, Play, Bookmark, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, Play, Bookmark } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import type { MangaItem } from "@/types/manga";
@@ -26,8 +26,6 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const touchStartX = useRef<number | null>(null);
-  const [visibleCount, setVisibleCount] = useState(1);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const visible = useMemo(() => items.slice(0, 7), [items]);
   const count = visible.length;
@@ -35,7 +33,6 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
   const next = useCallback(() => setIdx((i) => (i + 1) % count), [count]);
   const prev = useCallback(() => setIdx((i) => (i - 1 + count) % count), [count]);
 
-  // Auto-advance timer
   useEffect(() => {
     if (count <= 1 || isPaused) return;
     timerRef.current = setInterval(next, 6000);
@@ -44,7 +41,6 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
     };
   }, [count, isPaused, next]);
 
-  // Pause on hover, focus, touch, or tab hidden
   useEffect(() => {
     const onVisibilityChange = () => {
       if (document.hidden) setIsPaused(true);
@@ -54,7 +50,6 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [isPaused]);
 
-  // Keyboard navigation
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "ArrowLeft") prev();
@@ -64,7 +59,6 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [next, prev]);
 
-  // Touch swipe
   const onTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
   };
@@ -78,83 +72,20 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
     touchStartX.current = null;
   };
 
-  // Responsive visible count for stack effect
-  useEffect(() => {
-    const updateCount = () => {
-      const width = containerRef.current?.offsetWidth ?? 0;
-      setVisibleCount(width < 640 ? 1 : width < 1024 ? 2 : 3);
-    };
-    updateCount();
-    window.addEventListener("resize", updateCount);
-    return () => window.removeEventListener("resize", updateCount);
-  }, []);
-
   if (count === 0) return null;
 
   const active = visible[idx];
-  const prevItem = visible[(idx - 1 + count) % count];
-  const nextItem = visible[(idx + 1) % count];
-
   const genres = active.genres?.slice(0, 3) ?? [];
 
   return (
     <div
-      ref={containerRef}
       className="relative w-full"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      {/* Stack/3D Carousel */}
       <div className="relative aspect-[4/3] w-full">
-        {/* Previous card (stacked behind) */}
-        {visible.length > 1 && visibleCount > 1 && (
-          <Link
-            href={`/manga/${prevItem.slug}`}
-            prefetch={false}
-            className="absolute inset-0 -z-10"
-            style={{ transform: "translateX(-15%) scale(0.88)", opacity: 0.4 }}
-          >
-            <div className="absolute inset-0 overflow-hidden rounded-2xl bg-[#141414]">
-              <SmartImage
-                src={prevItem.thumb || "/no-image.png"}
-                alt={prevItem.title}
-                title={prevItem.title}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 50vw, 200px"
-                unoptimized
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-            </div>
-          </Link>
-        )}
-
-        {/* Next card (stacked behind) */}
-        {visible.length > 1 && visibleCount > 1 && (
-          <Link
-            href={`/manga/${nextItem.slug}`}
-            prefetch={false}
-            className="absolute inset-0 -z-10"
-            style={{ transform: "translateX(15%) scale(0.88)", opacity: 0.4 }}
-          >
-            <div className="absolute inset-0 overflow-hidden rounded-2xl bg-[#141414]">
-              <SmartImage
-                src={nextItem.thumb || "/no-image.png"}
-                alt={nextItem.title}
-                title={nextItem.title}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 50vw, 200px"
-                unoptimized
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-            </div>
-          </Link>
-        )}
-
-        {/* Active card */}
         <AnimatePresence mode="wait">
           <motion.div
             key={active.slug}
@@ -182,29 +113,32 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
                   sizes="(max-width: 768px) 100vw, 400px"
                   unoptimized
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
 
-                {/* Top badges */}
-                <div className="absolute top-4 left-4 right-4 flex items-start justify-between gap-2 z-10">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="px-2 py-0.5 rounded-md bg-black/60 text-white text-[10px] font-medium uppercase tracking-wide">
-                      {formatMangaType(active.type)}
-                    </span>
-                    {active.is_hot && (
-                      <span className="px-2 py-0.5 rounded-md bg-red-500/90 text-white text-[9px] font-bold uppercase">HOT</span>
-                    )}
-                    {active.is_new && !active.is_hot && (
-                      <span className="px-2 py-0.5 rounded-md bg-emerald-500/90 text-white text-[9px] font-bold uppercase">BARU</span>
-                    )}
-                  </div>
+                {/* Country label + rating — top left */}
+                <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-full bg-black/60 text-white text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm">
+                    {formatMangaType(active.type)}
+                  </span>
                   {active.rating !== "0" && active.rating !== "?" && (
-                    <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60"
-                    >
-                      <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-                      <span className="text-[11px] font-bold text-white">{active.rating}</span>
-                    </motion.div>
+                    <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/60 text-white text-[10px] font-bold backdrop-blur-sm">
+                      <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                      {active.rating}
+                    </span>
+                  )}
+                </div>
+
+                {/* HOT / NEW badge — top right */}
+                <div className="absolute top-4 right-4 z-10 flex items-center gap-1.5">
+                  {active.is_hot && (
+                    <span className="px-2.5 py-1 rounded-full bg-red-500/90 text-white text-[9px] font-bold uppercase tracking-wide">
+                      HOT
+                    </span>
+                  )}
+                  {active.is_new && !active.is_hot && (
+                    <span className="px-2.5 py-1 rounded-full bg-emerald-500/90 text-white text-[9px] font-bold uppercase tracking-wide">
+                      BARU
+                    </span>
                   )}
                 </div>
 
@@ -212,7 +146,7 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
                 <div className="absolute bottom-0 left-0 right-0 p-5 z-10">
                   {/* Genre chips */}
                   {genres.length > 0 && (
-                    <div className="flex items-center gap-1.5 flex-wrap mb-3">
+                    <div className="flex items-center gap-1.5 flex-wrap mb-2">
                       {genres.map((g) => (
                         <span
                           key={g}
@@ -233,7 +167,7 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
                     {active.title}
                   </h2>
 
-                  <div className="flex items-center gap-3 text-xs text-neutral-300 mb-3 flex-wrap">
+                  <div className="flex items-center gap-2 text-xs text-neutral-300 mb-3">
                     {active.latest_chapter && (
                       <span className="flex items-center gap-1">
                         <Bookmark className="w-3 h-3" />
@@ -242,25 +176,21 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
                     )}
                   </div>
 
-                  <p className="text-xs text-neutral-400 line-clamp-2 max-w-[90%] leading-relaxed mb-4">
-                    {active.synopsis || "Klik untuk melihat detail dan mulai membaca komik ini."}
-                  </p>
-
                   <div className="flex items-center gap-2">
                     <motion.span
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.96 }}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
                       className={cn(
-                        "inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full text-white text-xs font-semibold transition-all",
+                        "inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full text-white text-xs font-semibold transition-all shadow-lg",
                         accentStyle.bg
                       )}
                     >
                       <Play className="w-3.5 h-3.5 fill-white" /> Baca Sekarang
                     </motion.span>
                     <motion.span
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.96 }}
-                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-white/10 text-white text-xs font-medium backdrop-blur-sm"
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-white/10 text-white text-xs font-medium backdrop-blur-sm hover:bg-white/15 transition-colors"
                     >
                       <Bookmark className="w-3.5 h-3.5" /> Simpan
                     </motion.span>
@@ -272,35 +202,15 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
         </AnimatePresence>
       </div>
 
-      {/* Navigation arrows */}
-      {visible.length > 1 && (
-        <>
-          <button
-            onClick={prev}
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/60 transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-            aria-label="Sebelumnya"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <button
-            onClick={next}
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/60 transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-            aria-label="Berikutnya"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        </>
-      )}
-
-      {/* Dots indicator */}
-      {visible.length > 1 && (
-        <div className="flex justify-center gap-1.5 mt-3">
+      {/* Dots indicator only — no arrows */}
+      {count > 1 && (
+        <div className="flex justify-center gap-2 mt-3">
           {visible.map((_, i) => (
             <motion.button
               key={i}
               onClick={() => setIdx(i)}
-              whileHover={{ scale: 1.3 }}
-              whileTap={{ scale: 0.9 }}
+              whileHover={{ scale: 1.4 }}
+              whileTap={{ scale: 0.85 }}
               className={cn(
                 "h-1.5 rounded-full transition-all duration-300",
                 i === idx ? cn("w-7", accentStyle.bg) : "w-2 bg-neutral-700/50 hover:bg-neutral-600"
