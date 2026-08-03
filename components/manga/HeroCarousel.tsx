@@ -74,11 +74,11 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
 
   if (count === 0) return null;
 
-  // Simple and fast slide variants
-  const slideVariants = {
-    enter: (d: number) => ({ x: d * 60, opacity: 0 }),
-    center: { x: 0, opacity: 1 },
-    exit: (d: number) => ({ x: d * -60, opacity: 0 }),
+  // Light crossfade variants (no heavy x-movement)
+  const fadeVariants = {
+    enter: { opacity: 0 },
+    center: { opacity: 1 },
+    exit: { opacity: 0 },
   };
 
   return (
@@ -90,21 +90,20 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
       onTouchEnd={onTouchEnd}
     >
       <div className="relative aspect-[4/3] sm:aspect-[16/9] w-full overflow-hidden rounded-2xl bg-[#141414] shadow-xl">
-        <AnimatePresence custom={dir} mode="wait">
+        <AnimatePresence initial={false}>
           <motion.div
             key={idx}
-            custom={dir}
-            variants={slideVariants}
+            variants={fadeVariants}
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ duration: 0.4, ease: "easeOut" }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
             className="absolute inset-0"
           >
             <Link
               href={`/manga/${visible[idx].slug}`}
               prefetch={false}
-              className="block h-full w-full active:scale-[0.99] transition-transform duration-150"
+              className="block h-full w-full"
             >
               <div className="relative h-full w-full">
                 <SmartImage
@@ -121,62 +120,73 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
                 {/* Simplified Overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
 
-                {/* Floating Content Card (Optimized: No Blur) */}
-                <div className="absolute bottom-3 left-3 right-3 z-20">
-                  <div className="bg-[#1c1c1c]/90 border border-white/[0.08] rounded-xl p-3 sm:p-4 shadow-2xl">
-                    {/* Genres */}
-                    {visible[idx].genres && visible[idx].genres.length > 0 && (
-                      <div className="flex items-center gap-1.5 mb-1 truncate">
-                        {visible[idx].genres.slice(0, 2).map((g) => (
-                          <span key={g} className="text-[8px] font-bold text-neutral-400 uppercase tracking-tight">
-                            {g}
-                          </span>
-                        ))}
-                      </div>
+                {/* Content */}
+                <div className="absolute bottom-0 left-0 right-0 z-20 p-3 sm:p-5">
+                  {/* Genres */}
+                  {visible[idx].genres && visible[idx].genres.length > 0 && (
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      {visible[idx].genres.slice(0, 2).map((g) => (
+                        <span key={g} className="text-[8px] font-bold text-neutral-300 uppercase tracking-tight bg-black/40 px-1.5 py-0.5 rounded">
+                          {g}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Title */}
+                  <h2 className="text-white font-bold text-base sm:text-lg md:text-2xl leading-tight line-clamp-1 mb-1">
+                    {visible[idx].title}
+                  </h2>
+
+                  {/* Synopsis */}
+                  {visible[idx].synopsis && (
+                    <p className="hidden sm:block text-neutral-300 text-xs md:text-sm leading-relaxed line-clamp-2 mb-2 max-w-2xl">
+                      {visible[idx].synopsis}
+                    </p>
+                  )}
+
+                  {/* Metadata */}
+                  <div className="flex items-center gap-2 flex-wrap mb-3">
+                    <span className="px-1.5 py-0.5 rounded-md bg-white/10 text-white text-[9px] font-bold border border-white/5">
+                      {formatMangaType(visible[idx].type)}
+                    </span>
+
+                    {visible[idx].rating !== "0" && visible[idx].rating !== "?" && (
+                      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 text-[9px] font-bold border border-amber-500/20">
+                        <Star className="w-2.5 h-2.5 fill-amber-400" />
+                        {visible[idx].rating}
+                      </span>
                     )}
 
-                    {/* Title */}
-                    <h2 className="text-white font-bold text-base sm:text-lg md:text-xl leading-tight line-clamp-1 mb-2">
-                      {visible[idx].title}
-                    </h2>
+                    <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/5 text-neutral-300 text-[9px] font-bold border border-white/5">
+                      <Bookmark className="w-2.5 h-2.5" />
+                      {visible[idx].latest_chapter}
+                    </span>
+                  </div>
 
-                    {/* Metadata */}
-                    <div className="flex items-center gap-2 flex-wrap mb-3">
-                      <span className="px-1.5 py-0.5 rounded-md bg-white/10 text-white text-[9px] font-bold border border-white/5">
-                        {formatMangaType(visible[idx].type)}
-                      </span>
-
-                      {visible[idx].rating !== "0" && visible[idx].rating !== "?" && (
-                        <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 text-[9px] font-bold border border-amber-500/20">
-                          <Star className="w-2.5 h-2.5 fill-amber-400" />
-                          {visible[idx].rating}
-                        </span>
-                      )}
-
-                      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/5 text-neutral-300 text-[9px] font-bold border border-white/5">
-                        <Bookmark className="w-2.5 h-2.5" />
-                        {visible[idx].latest_chapter}
-                      </span>
+                  {/* CTA & Dots Row */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-1">
+                      {visible.map((_, dotIdx) => (
+                        <button
+                          key={dotIdx}
+                          type="button"
+                          aria-label={`Go to slide ${dotIdx + 1}`}
+                          onClick={() => {
+                            setDir(dotIdx > idx ? 1 : -1);
+                            setIdx(dotIdx);
+                          }}
+                          className={cn(
+                            "h-1 rounded-full transition-all duration-200 cursor-pointer",
+                            dotIdx === idx ? cn("w-4", accentStyle.bg) : "w-1 bg-neutral-600 hover:bg-neutral-500"
+                          )}
+                        />
+                      ))}
                     </div>
 
-                    {/* CTA & Dots Row */}
-                    <div className="flex items-center justify-between pt-2.5 border-t border-white/[0.05]">
-                      <div className="flex gap-1">
-                        {visible.map((_, dotIdx) => (
-                          <div
-                            key={dotIdx}
-                            className={cn(
-                              "h-1 rounded-full transition-all duration-200",
-                              dotIdx === idx ? cn("w-4", accentStyle.bg) : "w-1 bg-neutral-700"
-                            )}
-                          />
-                        ))}
-                      </div>
-
-                      <span className={cn("inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-white text-[10px] font-bold", accentStyle.bg)}>
-                        Baca <ChevronRight className="w-3 h-3" />
-                      </span>
-                    </div>
+                    <span className={cn("inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-white text-[10px] font-bold", accentStyle.bg)}>
+                      Baca <ChevronRight className="w-3 h-3" />
+                    </span>
                   </div>
                 </div>
               </div>
