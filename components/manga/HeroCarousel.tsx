@@ -94,9 +94,9 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
   if (count === 0) return null;
 
   const slideVariants = {
-    enter: (d: number) => ({ x: d * 90, opacity: 0, scale: 0.96 }),
-    center: { x: 0, opacity: 1, scale: 1 },
-    exit: (d: number) => ({ x: d * -90, opacity: 0, scale: 0.96 }),
+    enter: (d: number) => ({ x: d * 100, opacity: 0 }),
+    center: { x: 0, opacity: 1 },
+    exit: (d: number) => ({ x: d * -100, opacity: 0 }),
   };
 
   return (
@@ -112,7 +112,7 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
         style={{ y: parallaxY, scale: parallaxScale, opacity: parallaxOpacity }}
         className="relative"
       >
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-[#141414]">
+        <div className="relative aspect-[4/3] sm:aspect-[16/9] w-full overflow-hidden rounded-3xl bg-[#0a0a0a] shadow-[0_12px_40px_rgba(0,0,0,0.6)]">
           <AnimatePresence custom={dir} mode="sync">
             {visible.map((item, i) =>
               i === idx ? (
@@ -123,7 +123,7 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
                   initial="enter"
                   animate="center"
                   exit="exit"
-                  transition={{ duration: 0.55, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
                   className="absolute inset-0 z-10"
                 >
                   <Link
@@ -134,10 +134,10 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
                     <div className="relative h-full w-full overflow-hidden">
                       {/* Parallax image layer — slides slower than foreground */}
                       <motion.div
-                        initial={{ x: dir * 60, scale: 1.22 }}
+                        initial={{ x: dir * 50, scale: 1.22 }}
                         animate={{ x: 0, scale: 1 }}
                         transition={{
-                          x: { duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] },
+                          x: { duration: 0.75, ease: [0.25, 0.46, 0.45, 0.94] },
                           scale: { duration: KENBURNS_DURATION / 1000, ease: "linear" },
                         }}
                         className="absolute inset-0"
@@ -149,84 +149,117 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
                           fill
                           className="object-cover"
                           priority
-                          sizes="(max-width: 768px) 100vw, 400px"
+                          sizes="(max-width: 768px) 100vw, 500px"
                           unoptimized
                         />
                       </motion.div>
 
-                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/20" />
-                      <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent" />
+                      {/* Cinematic Overlay Gradient */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-black/30 to-transparent" />
 
-                      {/* Top badges */}
-                      <div className="absolute top-4 left-4 right-4 flex items-start justify-between gap-2 z-10">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {item.is_hot && (
-                            <span className="px-2.5 py-1 rounded-full bg-red-500/90 text-white text-[9px] font-bold uppercase tracking-wide">
-                              HOT
-                            </span>
-                          )}
-                          {item.is_new && !item.is_hot && (
-                            <span className="px-2.5 py-1 rounded-full bg-emerald-500/90 text-white text-[9px] font-bold uppercase tracking-wide">
-                              BARU
-                            </span>
-                          )}
-                          {item.rating !== "0" && item.rating !== "?" && (
-                            <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/60 text-white text-[10px] font-bold backdrop-blur-sm">
-                              <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                              {item.rating}
-                            </span>
-                          )}
-                        </div>
-                        <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/80 text-[10px] font-medium uppercase backdrop-blur-sm">
-                          {formatMangaType(item.type)}
-                        </span>
-                      </div>
-
-                      {/* Foreground content — slides faster for depth */}
+                      {/* Glassmorphic Floating Card */}
                       <motion.div
-                        initial={{ x: dir * 120, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-                        className="absolute bottom-0 left-0 right-0 p-5 z-10"
+                        initial={{ y: 24, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ duration: 0.65, delay: 0.1, ease: [0.21, 1.02, 0.43, 1.01] }}
+                        className="absolute bottom-4 left-4 right-4 z-20"
                       >
-                        {item.genres && item.genres.length > 0 && (
-                          <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                            {item.genres.slice(0, 2).map((g) => (
-                              <span
-                                key={g}
-                                className="px-2 py-0.5 rounded-full bg-white/10 text-white/80 text-[10px] font-medium backdrop-blur-sm"
-                              >
-                                {g}
+                        <div className="bg-[#0f0f0f]/50 backdrop-blur-xl border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.8)]">
+                          {/* Genres above title */}
+                          {item.genres && item.genres.length > 0 && (
+                            <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                              {item.genres.slice(0, 2).map((g) => (
+                                <span
+                                  key={g}
+                                  className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider"
+                                >
+                                  {g}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Title */}
+                          <h2 className="text-white font-extrabold text-lg sm:text-xl md:text-2xl leading-tight line-clamp-1 mb-2 tracking-tight">
+                            {item.title}
+                          </h2>
+
+                          {/* Metadata Row: Rating, Chapter, Type label */}
+                          <div className="flex items-center gap-2 flex-wrap mb-3">
+                            {/* Type badge */}
+                            <span className="px-2 py-0.5 rounded-full bg-white/10 text-white text-[10px] font-bold tracking-wide border border-white/10 backdrop-blur-md flex items-center gap-1">
+                              {formatMangaType(item.type)}
+                            </span>
+
+                            {/* Rating */}
+                            {item.rating !== "0" && item.rating !== "?" && (
+                              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold border border-amber-500/30 backdrop-blur-md">
+                                <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                                {item.rating}
                               </span>
-                            ))}
-                            {item.genres.length > 2 && (
-                              <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/60 text-[10px] font-medium">
-                                +{item.genres.length - 2}
+                            )}
+
+                            {/* Chapter */}
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 text-neutral-200 text-[10px] font-bold border border-white/5 backdrop-blur-md">
+                              <Bookmark className="w-3 h-3 text-neutral-300" />
+                              {item.latest_chapter}
+                            </span>
+
+                            {/* Hot/New Badge */}
+                            {item.is_hot && (
+                              <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[9px] font-extrabold uppercase tracking-wider border border-red-500/30 backdrop-blur-md">
+                                HOT
+                              </span>
+                            )}
+                            {item.is_new && !item.is_hot && (
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[9px] font-extrabold uppercase tracking-wider border border-emerald-500/30 backdrop-blur-md">
+                                BARU
                               </span>
                             )}
                           </div>
-                        )}
 
-                        <h2 className="text-white font-bold text-xl sm:text-2xl leading-tight line-clamp-1 mb-1.5">
-                          {item.title}
-                        </h2>
+                          {/* Synopsis */}
+                          <p className="text-[11px] text-neutral-300/80 line-clamp-2 leading-relaxed mb-4">
+                            {item.synopsis || "Klik untuk melihat detail dan mulai membaca komik ini."}
+                          </p>
 
-                        <p className="text-[11px] text-neutral-300/90 line-clamp-1 max-w-[85%] leading-relaxed mb-3">
-                          {item.synopsis || "Klik untuk melihat detail dan mulai membaca komik ini."}
-                        </p>
+                          {/* Bottom Action Row with Slide Dots & CTA */}
+                          <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/[0.06]">
+                            {/* Navigation Dots inside the Card */}
+                            <div className="flex items-center gap-1">
+                              {count > 1 && (
+                                <div className="flex gap-1.5">
+                                  {visible.map((_, dotIdx) => (
+                                    <button
+                                      key={dotIdx}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setDir(dotIdx > idx ? 1 : -1);
+                                        setIdx(dotIdx);
+                                      }}
+                                      className={cn(
+                                        "h-1.5 rounded-full transition-all duration-300",
+                                        dotIdx === idx ? cn("w-5", accentStyle.bg) : "w-1.5 bg-neutral-600/60 hover:bg-neutral-500"
+                                      )}
+                                      aria-label={`Slide ${dotIdx + 1}`}
+                                      aria-current={dotIdx === idx ? "true" : "false"}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
 
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={cn(
-                              "inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-white text-xs font-semibold shadow-lg transition-transform hover:brightness-110",
-                              accentStyle.bg
-                            )}
-                          >
-                            <Bookmark className="w-3.5 h-3.5" /> {item.latest_chapter}
-                          </span>
-                          <span className="inline-flex items-center gap-1 text-[11px] text-white/70 font-medium">
-                            Baca sekarang <ChevronRight className="w-3.5 h-3.5" />
-                          </span>
+                            {/* CTA button indicator */}
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-white text-[11px] font-bold shadow-lg transition-transform active:scale-95 hover:brightness-110",
+                                accentStyle.bg
+                              )}
+                            >
+                              Baca Sekarang <ChevronRight className="w-3.5 h-3.5" />
+                            </span>
+                          </div>
                         </div>
                       </motion.div>
                     </div>
@@ -236,29 +269,6 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
             )}
           </AnimatePresence>
         </div>
-
-        {/* Dots */}
-        {count > 1 && (
-          <div className="flex justify-center gap-2 mt-3">
-            {visible.map((_, i) => (
-              <motion.button
-                key={i}
-                onClick={() => {
-                  setDir(i > idx ? 1 : -1);
-                  setIdx(i);
-                }}
-                whileHover={{ scale: 1.4 }}
-                whileTap={{ scale: 0.85 }}
-                className={cn(
-                  "h-1.5 rounded-full transition-all duration-300",
-                  i === idx ? cn("w-7", accentStyle.bg) : "w-2 bg-neutral-700/50 hover:bg-neutral-600"
-                )}
-                aria-label={`Slide ${i + 1}`}
-                aria-current={i === idx ? "true" : "false"}
-              />
-            ))}
-          </div>
-        )}
       </motion.div>
     </div>
   );
