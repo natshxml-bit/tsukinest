@@ -12,6 +12,7 @@ import BackButtonHandler from "@/components/BackButtonHandler";
 import SplashScreenHandler from "@/components/SplashScreenHandler";
 import PresenceTracker from "@/components/PresenceTracker";
 import PushNotificationsHandler from "@/components/PushNotificationsHandler";
+import UpdateNotifier from "@/components/UpdateNotifier";
 import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({
@@ -131,6 +132,9 @@ export default function RootLayout({
 
             {/* Push notification native APK (gak render apa-apa) */}
             <PushNotificationsHandler />
+
+            {/* Popup update APK (native only) */}
+            <UpdateNotifier />
 
             {/* Capacitor Android Back Button */}
             <BackButtonHandler />

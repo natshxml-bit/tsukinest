@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
+import { getAdminApp } from "@/lib/firebaseAdmin";
 import { verifyIdToken } from "@/lib/verifyIdToken";
 
 export const runtime = "nodejs";
@@ -9,30 +9,6 @@ export const runtime = "nodejs";
 // Registrasi FCM token dari app APK: subscribe token ke topic
 // "tsukinest_all" supaya broadcast dari admin langsung nyampe
 // ke semua perangkat. Tanpa service account, di-skip diam-diam.
-let app: App | null = null;
-
-function getAdminApp(): App | null {
-  if (app) return app;
-  const existing = getApps()[0];
-  if (existing) {
-    app = existing;
-    return app;
-  }
-  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-  if (!serviceAccountJson || !projectId) return null;
-  try {
-    const serviceAccount = JSON.parse(serviceAccountJson);
-    app = initializeApp({
-      credential: cert(serviceAccount),
-      projectId,
-    });
-    return app;
-  } catch {
-    return null;
-  }
-}
-
 export async function POST(request: NextRequest) {
   const adminApp = getAdminApp();
   if (!adminApp) {

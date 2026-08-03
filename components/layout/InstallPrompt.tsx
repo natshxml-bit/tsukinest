@@ -6,22 +6,27 @@ import { Capacitor } from "@capacitor/core";
 
 export default function InstallPrompt() {
   const [show, setShow] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [apkUrl, setApkUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    setReady(true);
-
     // Kalau sudah masuk APK Capacitor, jangan tampilkan banner
-    if (Capacitor.isNativePlatform()) {
-      setShow(false);
-      return;
-    }
+    if (Capacitor.isNativePlatform()) return;
 
-    // Tampilkan hanya di browser/web
-    setShow(true);
+    (async () => {
+      try {
+        const res = await fetch("/api/latest-version");
+        const data = await res.json();
+        if (data?.version?.apkUrl) {
+          setApkUrl(data.version.apkUrl);
+          setShow(true);
+        }
+      } catch {
+        // kalau gagal, banner tidak ditampilkan
+      }
+    })();
   }, []);
 
-  if (!ready || !show) return null;
+  if (!show || !apkUrl) return null;
 
   return (
     <div className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-md">
@@ -44,8 +49,9 @@ export default function InstallPrompt() {
         </p>
 
         <a
-          href="/downloads/tsukinest.apk"
-          download
+          href={apkUrl}
+          target="_blank"
+          rel="noopener noreferrer"
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-sm font-semibold text-black transition hover:bg-zinc-200"
         >
           <Download className="h-4 w-4" />

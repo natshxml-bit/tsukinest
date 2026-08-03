@@ -1,54 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
-import { verifyIdToken } from "@/lib/verifyIdToken";
+import { getAdminApp, verifyAdmin } from "@/lib/firebaseAdmin";
 
 // Firebase Admin cuma jalan di Node.js (butuh process.env, crypto, dll).
 // Wajib dinyatakan eksplisit supaya gak pernah dibundle sebagai Edge
 // function — kalau jadi Edge, route langsung crash di module load.
 export const runtime = "nodejs";
 
-// Satu-satunya jalur FCM Admin SDK. Inisialisasi lazy: kalau env
-// FIREBASE_SERVICE_ACCOUNT (JSON string) belum di-set, push cuma skip
-// dan broadcast tetap tersimpan di Firestore (via client admin page).
-let app: App | null = null;
-
-function getAdminApp(): App | null {
-  if (app) return app;
-  const existing = getApps()[0];
-  if (existing) {
-    app = existing;
-    return app;
-  }
-  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-  if (!serviceAccountJson || !projectId) return null;
-  try {
-    const serviceAccount = JSON.parse(serviceAccountJson);
-    app = initializeApp({
-      credential: cert(serviceAccount),
-      projectId,
-    });
-    return app;
-  } catch (err) {
-    console.error("broadcast: gagal init firebase-admin:", err);
-    return null;
-  }
-}
-
-async function isAdmin(adminApp: App, idToken: string): Promise<boolean> {
-  try {
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "";
-    const uid = await verifyIdToken(idToken, projectId);
-    if (!uid) return false;
-    const snap = await getFirestore(adminApp).doc(`users/${uid}`).get();
-    return snap.exists && snap.data()?.role === "admin";
-  } catch {
-    return false;
-  }
-}
-
+// Broadcast pengumuman: tulis ke Firestore (via client admin page, biar
+// muncul di popup web) + kirim push FCM ke topic "tsukinest_all" (buat
+// notif APK). Kalau FIREBASE_SERVICE_ACCOUNT belum di-set, push di-skip.
 export async function POST(request: NextRequest) {
   try {
     const adminApp = getAdminApp();
@@ -64,7 +25,7 @@ export async function POST(request: NextRequest) {
     if (!idToken) {
       return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
     }
-    if (!(await isAdmin(adminApp, idToken))) {
+    if (!(await verifyAdmin(idToken))) {
       return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
     }
 

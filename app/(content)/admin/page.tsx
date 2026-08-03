@@ -27,6 +27,8 @@ import {
   Loader2,
   Megaphone,
   Send,
+  Smartphone,
+  Save,
 } from "lucide-react";
 import { useAccent } from "@/lib/accent";
 import { cn } from "@/utils/cn";
@@ -431,6 +433,139 @@ function BroadcastSection({ accentStyle }: { accentStyle: { bg: string; text: st
 
 // ───────────────────────── Main content ─────────────────────────
 
+function AppUpdateSection({ accentStyle }: { accentStyle: { bg: string; text: string; soft?: string } }) {
+  const [versionName, setVersionName] = useState("");
+  const [versionCode, setVersionCode] = useState("");
+  const [apkUrl, setApkUrl] = useState("");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/latest-version");
+        const data = await res.json();
+        if (cancelled || !data?.version) return;
+        const v = data.version;
+        setVersionName(v.versionName ?? "");
+        setVersionCode(v.versionCode ? String(v.versionCode) : "");
+        setApkUrl(v.apkUrl ?? "");
+        setNotes(v.notes ?? "");
+      } catch (err) {
+        console.error("AppUpdate: gagal load versi:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSave = async () => {
+    if (!versionName.trim() || !versionCode.trim() || !apkUrl.trim() || saving) return;
+    setSaving(true);
+    setStatus(null);
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error("Kamu belum login.");
+      const idToken = await user.getIdToken();
+      const res = await fetch("/api/latest-version", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({
+          versionName: versionName.trim(),
+          versionCode: Number(versionCode.trim()),
+          apkUrl: apkUrl.trim(),
+          notes: notes.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
+      setStatus({ type: "success", text: "Versi terbaru disimpan. APK lama akan dapat popup update." });
+    } catch (err) {
+      setStatus({ type: "error", text: err instanceof Error ? err.message : "Gagal simpan versi." });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="px-4 mb-5">
+      <div className="bg-[#1c1c1c] rounded-2xl border border-white/[0.05] p-4">
+        <div className="flex items-center gap-2 mb-1">
+          <div className="p-1.5 rounded-lg bg-white/5">
+            <Smartphone className={cn("w-4 h-4", accentStyle.text)} />
+          </div>
+          <span className="text-sm font-bold text-white">Update APK</span>
+        </div>
+        <p className="text-[11px] text-neutral-500 mb-4">
+          Set versi APK terbaru — APK lama yang masih terpasang akan muncul popup &quot;Update tersedia&quot; + tombol download.
+        </p>
+
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <input
+            value={versionName}
+            onChange={(e) => setVersionName(e.target.value)}
+            placeholder="Versi, mis. 1.2"
+            maxLength={20}
+            className="w-full bg-[#141414] border border-white/[0.05] rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-neutral-600 outline-none focus:border-white/20"
+          />
+          <input
+            value={versionCode}
+            onChange={(e) => setVersionCode(e.target.value.replace(/[^0-9]/g, ""))}
+            placeholder="Kode, mis. 3"
+            inputMode="numeric"
+            maxLength={6}
+            className="w-full bg-[#141414] border border-white/[0.05] rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-neutral-600 outline-none focus:border-white/20"
+          />
+        </div>
+        <input
+          value={apkUrl}
+          onChange={(e) => setApkUrl(e.target.value)}
+          placeholder="URL download APK, mis. https://github.com/.../releases/download/v1.2/app.apk"
+          className="w-full bg-[#141414] border border-white/[0.05] rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-neutral-600 outline-none focus:border-white/20 mb-2"
+        />
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Catatan update (opsional), mis. Fix bug notif, loading lebih cepat"
+          rows={2}
+          maxLength={200}
+          className="w-full bg-[#141414] border border-white/[0.05] rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-neutral-600 outline-none focus:border-white/20 mb-3 resize-none"
+        />
+
+        <button
+          onClick={handleSave}
+          disabled={saving || loading || !versionName.trim() || !versionCode.trim() || !apkUrl.trim()}
+          className={cn(
+            "w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-white transition-all active:scale-[0.98]",
+            accentStyle.bg,
+            (saving || loading || !versionName.trim() || !versionCode.trim() || !apkUrl.trim()) && "opacity-50 cursor-not-allowed"
+          )}
+        >
+          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+          {saving ? "Menyimpan..." : "Simpan Versi Terbaru"}
+        </button>
+
+        {status && (
+          <p className={cn(
+            "mt-2.5 text-[11px] font-medium",
+            status.type === "success" ? "text-emerald-400" : "text-red-400"
+          )}>
+            {status.text}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AdminDashboardContent({ currentUid }: { currentUid: string | null }) {
   const { users, stats, loading, error } = useAdminUsers();
   const { style: accentStyle } = useAccent();
@@ -512,6 +647,9 @@ function AdminDashboardContent({ currentUid }: { currentUid: string | null }) {
 
       {/* Broadcast */}
       <BroadcastSection accentStyle={accentStyle} />
+
+      {/* Update APK */}
+      <AppUpdateSection accentStyle={accentStyle} />
 
       {/* Search */}
       <div className="px-4 mb-3">
