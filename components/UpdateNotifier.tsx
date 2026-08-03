@@ -21,9 +21,6 @@ type LatestVersion = {
   notes: string;
 };
 
-const DISMISS_KEY = "tsukinest-update-dismissed";
-const DISMISS_TTL_MS = 24 * 60 * 60 * 1000;
-
 export default function UpdateNotifier() {
   const [info, setInfo] = useState<LatestVersion | null>(null);
 
@@ -46,18 +43,9 @@ export default function UpdateNotifier() {
         if (!latest || !latest.versionCode || !latest.apkUrl) return;
         if (latest.versionCode <= installedCode) return;
 
-        try {
-          const prev = JSON.parse(localStorage.getItem(DISMISS_KEY) || "{}") as {
-            versionCode?: number;
-            at?: number;
-          };
-          if (prev.versionCode === latest.versionCode && Date.now() - (prev.at ?? 0) < DISMISS_TTL_MS) {
-            return;
-          }
-        } catch {
-          // abaikan kalau localStorage error
-        }
-
+        // Sengaja gak di-dismiss permanen: selama versi terpasang masih
+        // ketinggalan, popup muncul lagi tiap app dibuka. "Nanti" cuma
+        // nutup untuk sesi itu aja.
         setInfo(latest);
       } catch (err) {
         console.error("UpdateNotifier: gagal cek update:", err);
@@ -73,14 +61,6 @@ export default function UpdateNotifier() {
   if (!info) return null;
 
   const dismiss = () => {
-    try {
-      localStorage.setItem(
-        DISMISS_KEY,
-        JSON.stringify({ versionCode: info.versionCode, at: Date.now() })
-      );
-    } catch {
-      // abaikan
-    }
     setInfo(null);
   };
 
