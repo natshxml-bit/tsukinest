@@ -140,7 +140,7 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
 
                   {/* Synopsis */}
                   {visible[idx].synopsis && (
-                    <p className="hidden sm:block text-neutral-300 text-xs md:text-sm leading-relaxed line-clamp-2 mb-2 max-w-2xl">
+                    <p className="text-neutral-300 text-[11px] sm:text-xs md:text-sm leading-relaxed line-clamp-2 mb-2 max-w-2xl">
                       {visible[idx].synopsis}
                     </p>
                   )}
@@ -164,35 +164,34 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
                     </span>
                   </div>
 
-                  {/* CTA & Dots Row */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex gap-1">
-                      {visible.map((_, dotIdx) => (
-                        <button
-                          key={dotIdx}
-                          type="button"
-                          aria-label={`Go to slide ${dotIdx + 1}`}
-                          onClick={() => {
-                            setDir(dotIdx > idx ? 1 : -1);
-                            setIdx(dotIdx);
-                          }}
-                          className={cn(
-                            "h-1 rounded-full transition-all duration-200 cursor-pointer",
-                            dotIdx === idx ? cn("w-4", accentStyle.bg) : "w-1 bg-neutral-600 hover:bg-neutral-500"
-                          )}
-                        />
-                      ))}
-                    </div>
-
-                    <span className={cn("inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-white text-[10px] font-bold", accentStyle.bg)}>
-                      Baca <ChevronRight className="w-3 h-3" />
-                    </span>
-                  </div>
+                  {/* CTA */}
+                  <span className={cn("inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-white text-[10px] font-bold", accentStyle.bg)}>
+                    Baca <ChevronRight className="w-3 h-3" />
+                  </span>
                 </div>
               </div>
             </Link>
           </motion.div>
         </AnimatePresence>
+      </div>
+
+      {/* Indicator Dots (di bawah hero card, terpisah) */}
+      <div className="flex items-center justify-center gap-1.5 mt-3">
+        {visible.map((_, dotIdx) => (
+          <button
+            key={dotIdx}
+            type="button"
+            aria-label={`Go to slide ${dotIdx + 1}`}
+            onClick={() => {
+              setDir(dotIdx > idx ? 1 : -1);
+              setIdx(dotIdx);
+            }}
+            className={cn(
+              "h-1.5 rounded-full transition-all duration-200 cursor-pointer",
+              dotIdx === idx ? cn("w-5", accentStyle.bg) : "w-1.5 bg-neutral-600 hover:bg-neutral-500"
+            )}
+          />
+        ))}
       </div>
     </div>
   );
