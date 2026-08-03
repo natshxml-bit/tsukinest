@@ -77,6 +77,8 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
   const active = visible[idx];
   const genres = active.genres?.slice(0, 3) ?? [];
 
+  const isForward = idx > 0;
+
   return (
     <div
       className="relative w-full"
@@ -86,13 +88,14 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
       onTouchEnd={onTouchEnd}
     >
       <div className="relative aspect-[4/3] w-full">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" custom={isForward ? 1 : -1}>
           <motion.div
             key={active.slug}
-            initial={{ opacity: 0, scale: 0.98, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 1.02, y: -10 }}
-            transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+            custom={isForward ? 1 : -1}
+            initial={{ opacity: 0, x: isForward ? 300 : -300 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: isForward ? -300 : 300 }}
+            transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
             className="absolute inset-0 z-10"
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
@@ -115,29 +118,24 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
 
-                {/* Country label + rating — top left */}
-                <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
-                  <span className="px-2.5 py-1 rounded-full bg-black/60 text-white text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm">
-                    {formatMangaType(active.type)}
-                  </span>
+                {/* Top badges — HOT / BARU + rating */}
+                <div className="absolute top-4 left-4 right-4 flex items-start justify-between gap-2 z-10">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {active.is_hot && (
+                      <span className="px-2.5 py-1 rounded-full bg-red-500/90 text-white text-[9px] font-bold uppercase tracking-wide">
+                        HOT
+                      </span>
+                    )}
+                    {active.is_new && !active.is_hot && (
+                      <span className="px-2.5 py-1 rounded-full bg-emerald-500/90 text-white text-[9px] font-bold uppercase tracking-wide">
+                        BARU
+                      </span>
+                    )}
+                  </div>
                   {active.rating !== "0" && active.rating !== "?" && (
                     <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/60 text-white text-[10px] font-bold backdrop-blur-sm">
                       <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
                       {active.rating}
-                    </span>
-                  )}
-                </div>
-
-                {/* HOT / NEW badge — top right */}
-                <div className="absolute top-4 right-4 z-10 flex items-center gap-1.5">
-                  {active.is_hot && (
-                    <span className="px-2.5 py-1 rounded-full bg-red-500/90 text-white text-[9px] font-bold uppercase tracking-wide">
-                      HOT
-                    </span>
-                  )}
-                  {active.is_new && !active.is_hot && (
-                    <span className="px-2.5 py-1 rounded-full bg-emerald-500/90 text-white text-[9px] font-bold uppercase tracking-wide">
-                      BARU
                     </span>
                   )}
                 </div>
@@ -167,7 +165,11 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
                     {active.title}
                   </h2>
 
-                  <div className="flex items-center gap-2 text-xs text-neutral-300 mb-3">
+                  {/* Type label + chapter + synopsis sejajar */}
+                  <div className="flex items-center gap-2 text-xs text-neutral-300 mb-2 flex-wrap">
+                    <span className="px-1.5 py-0.5 rounded bg-black/50 text-white/80 text-[10px] font-medium uppercase">
+                      {formatMangaType(active.type)}
+                    </span>
                     {active.latest_chapter && (
                       <span className="flex items-center gap-1">
                         <Bookmark className="w-3 h-3" />
@@ -175,6 +177,10 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
                       </span>
                     )}
                   </div>
+
+                  <p className="text-xs text-neutral-400 line-clamp-2 max-w-[90%] leading-relaxed mb-4">
+                    {active.synopsis || "Klik untuk melihat detail dan mulai membaca komik ini."}
+                  </p>
 
                   <div className="flex items-center gap-2">
                     <motion.span
@@ -202,7 +208,7 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
         </AnimatePresence>
       </div>
 
-      {/* Dots indicator only — no arrows */}
+      {/* Dots indicator only */}
       {count > 1 && (
         <div className="flex justify-center gap-2 mt-3">
           {visible.map((_, i) => (
