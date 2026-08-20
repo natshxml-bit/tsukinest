@@ -73,6 +73,28 @@ export function ChapterReader() {
   // spam saveProgress tiap tick scroll begitu udah >=95%.
   const savedCompletedRef = useRef<Set<string>>(new Set());
 
+  // FIX: di mode vertical, reader.page selalu 0 (gambar di-render semua,
+  // halaman gak di-track per-image kayak horizontal). Kalau kita nyimpen
+  // lastReadPage berbasis reader.page, yang kesimpen melulu 0 → fitur
+  // "lanjut baca / auto-scroll" gak akan pernah jalan di mode vertikal.
+  // Jadi di sini dihitung image index yang lagi paling deket ke atas viewport.
+  const getCurrentReadPage = useCallback(() => {
+    if (reader.mode !== "vertical") return reader.page;
+    const imgs = reader.mainRef.current?.querySelectorAll<HTMLImageElement>("img");
+    if (!imgs || imgs.length === 0) return 0;
+    const viewTop = window.scrollY + 80;
+    let best = 0;
+    let bestDist = Infinity;
+    imgs.forEach((img, i) => {
+      const dist = Math.abs(img.getBoundingClientRect().top - viewTop);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = i;
+      }
+    });
+    return best;
+  }, [reader.mode, reader.page, reader.mainRef]);
+
   useEffect(() => {
     if (!reader.chapterSlug || !reader.data?.series_slug) return;
 
@@ -81,6 +103,8 @@ export function ChapterReader() {
       reader.mode === "horizontal"
         ? reader.page >= totalPages - 1
         : reader.scrollProgress >= 95;
+
+    const readPage = getCurrentReadPage();
 
     // FIX: penanda "Selesai" HARUS langsung diflush begitu isCompleted true,
     // JANGAN didebounce. Sebelumnya ini ikut nunggu 1000ms di dalem setTimeout
@@ -92,7 +116,7 @@ export function ChapterReader() {
       savedCompletedRef.current.add(reader.chapterSlug);
       saveProgress(
         reader.chapterSlug,
-        reader.page,
+        readPage,
         String(reader.data?.chapter_number ?? ""),
         true
       );
@@ -104,7 +128,7 @@ export function ChapterReader() {
       if (!isCompleted) {
         saveProgress(
           reader.chapterSlug,
-          reader.page,
+          readPage,
           String(reader.data?.chapter_number ?? ""),
           false
         );
@@ -121,6 +145,7 @@ export function ChapterReader() {
     reader.mode,
     reader.scrollProgress,
     saveProgress,
+    getCurrentReadPage,
   ]);
 
   // Keyboard navigation
@@ -311,6 +336,7 @@ export function ChapterReader() {
           page={reader.page}
           brokenImages={reader.brokenImages}
           imgLoaded={reader.imgLoaded}
+          eagerLimit={reader.eagerLimit}
           onSetImgLoaded={reader.setImgLoaded}
           onImageError={reader.onImageError}
           onToggleUI={() => reader.setShowUI((v) => !v)}

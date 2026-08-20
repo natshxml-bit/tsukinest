@@ -13,6 +13,7 @@ interface PageViewerProps {
   page: number;
   brokenImages: Set<number>;
   imgLoaded: boolean;
+  eagerLimit?: number;
   onSetImgLoaded: (v: boolean) => void;
   onImageError: (index: number) => void;
   onToggleUI: () => void;
@@ -25,6 +26,7 @@ export function PageViewer({
   page,
   brokenImages,
   imgLoaded,
+  eagerLimit = 0,
   onSetImgLoaded,
   onImageError,
   onToggleUI,
@@ -83,7 +85,7 @@ export function PageViewer({
             className={`${
               fit === "width" ? "w-full" : "max-w-full"
             } h-auto bg-[#080808] block select-none cursor-pointer`}
-            loading={i < 2 ? "eager" : "lazy"}
+            loading={i < Math.max(2, eagerLimit) ? "eager" : "lazy"}
             referrerPolicy="no-referrer"
             decoding="async"
             draggable={false}

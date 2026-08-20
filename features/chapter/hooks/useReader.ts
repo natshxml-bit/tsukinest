@@ -6,6 +6,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { getRead } from "@/lib/api";
+import { doc, getDoc } from "firebase/firestore";
+import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
+import { auth, db } from "@/lib/firebase";
 import { fixUrl, cleanNavigationSlug } from "@/features/chapter/utils/reader.utils";
 import type { ReadData, ReadMode, FitMode, ReadChapterRef } from "@/features/chapter/types";
 
@@ -38,6 +41,50 @@ export function useReader(seriesTitleFallback?: string) {
   const touchY = useRef<number | null>(null);
   const currentChapterBtnRef = useRef<HTMLButtonElement>(null);
   const mainRef = useRef<HTMLDivElement>(null);
+
+  /* ─── Pulihkan posisi baca (auto-scroll ke halaman terakhir) ─── */
+  const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
+  // Berapa gambar awal yang harus di-render eager pas restore posisi baca.
+  // Gambar di atas posisi terakhir WAJIB ke-load dulu biar posisi scroll
+  // yang dipulihin akurat (kalau lazy, tingginya 0 dan scroll-nya meleset).
+  const [eagerLimit, setEagerLimit] = useState(0);
+  const [pendingScroll, setPendingScroll] = useState<number | null>(null);
+  const restoredRef = useRef<Set<string>>(new Set());
+  // Ref biar fetch effect gak perlu masukin `mode` ke dependency (gak mau
+  // refetch chapter cuma karena user ganti mode baca).
+  const modeRef = useRef(mode);
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+
+  useEffect(() => {
+    return onAuthStateChanged(auth, setAuthUser);
+  }, []);
+
+  // Ambil lastReadPage dari Firestore. Cuma kepake kalau user lagi login,
+  // doc progress-nya ada, dan lastReadChapter-nya masih chapter ini.
+  const restorePosition = useCallback(
+    async (series: string, chSlug: string, totalPages: number): Promise<number | null> => {
+      if (restoredRef.current.has(chSlug)) return null;
+      const user = auth.currentUser;
+      if (!user || !series || !chSlug) return null;
+      try {
+        const snap = await getDoc(
+          doc(db, "users", user.uid, "reading_progress", series)
+        );
+        if (!snap.exists()) return null;
+        const d = snap.data();
+        if (!d || d.lastReadChapter !== chSlug) return null;
+        const page = Number(d.lastReadPage ?? 0);
+        if (!Number.isFinite(page) || page <= 0 || page >= totalPages) return null;
+        restoredRef.current.add(chSlug);
+        return page;
+      } catch {
+        return null;
+      }
+    },
+    []
+  );
 
   /* ─── Scroll progress (vertical mode) ─── */
   useEffect(() => {
@@ -116,6 +163,18 @@ export function useReader(seriesTitleFallback?: string) {
         });
 
         if (!cancelled) {
+          // FIX: pulihkan posisi baca terakhir SEBELUM data di-render, biar
+          // eagerLimit (gambar yang di-render eager) langsung kepasang pas
+          // render pertama — kalau telat, gambar-gambar udah ke-render lazy
+          // dan posisi scroll hasil restore-nya gak bakal akurat.
+          const restorePage = await restorePosition(
+            chapSeriesSlug,
+            chapterSlug,
+            images.length
+          );
+
+          if (cancelled) return;
+
           setData({
             title: ch.title || `Chapter ${chapNum}`,
             chapter_number: chapNum,
@@ -128,7 +187,13 @@ export function useReader(seriesTitleFallback?: string) {
             chapters: uniqueChapters,
           });
 
-          setPage(0);
+          if (restorePage != null && modeRef.current === "horizontal") {
+            setPage(restorePage);
+          } else {
+            setPage(0);
+          }
+          setEagerLimit(restorePage != null && modeRef.current === "vertical" ? restorePage : 0);
+          setPendingScroll(restorePage != null && modeRef.current === "vertical" ? restorePage : null);
           setBrokenImages(new Set());
           setImgLoaded(false);
 
@@ -142,7 +207,70 @@ export function useReader(seriesTitleFallback?: string) {
     };
     fetchData();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapterSlug, seriesSlug, reloadKey]);
+
+  /* ─── Restore posisi baca (vertical mode) ─── */
+  // Sekali pendingScroll dijadiin, tunggu render gambar sebentar, scroll ke
+  // gambar target, terus koreksi ulang sampai tinggi gambar-nya beneran
+  // kebaca (naturalHeight > 0) — karena gambar di atas target yang belum
+  // ke-load bikin offsetTop-nya meleset.
+  useEffect(() => {
+    if (pendingScroll == null || modeRef.current !== "vertical") return;
+    const target = pendingScroll;
+    setPendingScroll(null);
+    let iv: number | undefined;
+    const scrollTo = () => {
+      const el = mainRef.current?.querySelectorAll<HTMLImageElement>("img")?.[target];
+      if (el) el.scrollIntoView({ behavior: "auto", block: "start" });
+    };
+    const timer = window.setTimeout(() => {
+      scrollTo();
+      iv = window.setInterval(() => {
+        const cur = mainRef.current?.querySelectorAll<HTMLImageElement>("img")?.[target];
+        if (cur && cur.naturalHeight > 0) {
+          scrollTo();
+          window.clearInterval(iv);
+        }
+      }, 200);
+    }, 300);
+    return () => {
+      window.clearTimeout(timer);
+      if (iv != null) window.clearInterval(iv);
+    };
+  }, [pendingScroll]);
+
+  /* ─── Best-effort restore buat entry langsung (auth telat) ─── */
+  // Kalau user buka URL chapter langsung (misal share link / refresh APK),
+  // auth bisa nyelesaiin lebih telat dari fetch data → restore pertama
+  // kelewat. Ini retry-nya pakai authUser yang udah jadi. Mode horizontal
+  // masih bisa ditolong (setPage), vertical cuma best-effort karena
+  // gambar-gambar di atas target udah ke-render lazy duluan.
+  useEffect(() => {
+    if (!authUser || !data || restoredRef.current.has(chapterSlug)) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const snap = await getDoc(
+          doc(db, "users", authUser.uid, "reading_progress", data.series_slug)
+        );
+        if (cancelled || !snap.exists()) return;
+        const d = snap.data();
+        if (!d || d.lastReadChapter !== chapterSlug) return;
+        const page = Number(d.lastReadPage ?? 0);
+        if (!Number.isFinite(page) || page <= 0 || page >= data.images.length) return;
+        restoredRef.current.add(chapterSlug);
+        if (mode === "horizontal") {
+          setPage(page);
+        } else {
+          setPendingScroll(page);
+        }
+      } catch {
+        // silent
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [authUser, data, mode, chapterSlug]);
 
   /* ─── Preload adjacent pages in horizontal mode ─── */
   useEffect(() => {
@@ -286,6 +414,8 @@ export function useReader(seriesTitleFallback?: string) {
     // Refs
     currentChapterBtnRef,
     mainRef,
+    // Position restore
+    eagerLimit,
     // Navigation
     handleNavigation,
     nextPage,
