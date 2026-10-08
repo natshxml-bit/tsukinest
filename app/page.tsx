@@ -769,7 +769,7 @@ export default function HomePage() {
       <QuickSearchBar open={searchOpen} onClose={() => setSearchOpen(false)} accentStyle={accentStyle} />
       <NotifPopup open={notifOpen} onClose={() => setNotifOpen(false)} items={latest} onMarkRead={markNotifRead} dbNotifs={dbNotifs} user={user} accentStyle={accentStyle} />
 
-      <main className="relative max-w-md md:max-w-6xl mx-auto px-4 pt-16 space-y-6 md:space-y-10 z-10">
+      <main className="relative max-w-md mx-auto px-4 pt-16 space-y-6 z-10">
         {error && !loading ? (
           <HomeErrorState onRetry={() => fetchData(true)} accentStyle={accentStyle} />
         ) : (
@@ -795,7 +795,7 @@ export default function HomePage() {
               <section>
                 <SectionHeader title="Pilihan Editor" icon={Crown} accentStyle={accentStyle} subtitle="Rating tertinggi minggu ini"
                   badge={<span className="px-1.5 py-0.5 rounded bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 text-[9px] font-bold uppercase shrink-0">TOP</span>} />
-                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+                <div className="grid grid-cols-3 gap-3">
                   {editorsPick.map((item, i) => <div key={`${item.slug}-${i}`} className="h-full"><MangaCard item={item} variant="default" index={i} accent={accent} accentStyle={accentStyle} /></div>)}
                 </div>
               </section>
@@ -829,7 +829,7 @@ export default function HomePage() {
                   subtitle="Peringkat tertinggi minggu ini"
                   badge={<span className="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[9px] font-bold uppercase shrink-0">RANK</span>}
                 />
-                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+                <div className="grid grid-cols-3 gap-3">
                   {topWeekly.slice(0, 6).map((item, i) => (
                     <div key={`${item.slug}-${i}`} className="h-full relative">
                       <span className={cn("absolute -top-1 -left-1 z-20 w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center ring-2 ring-[#0a0a0a]", i < 3 ? "bg-amber-500 text-black" : "bg-[#262626] text-white")}>
@@ -857,11 +857,11 @@ export default function HomePage() {
                 </div>
               </div>
               {loading ? (
-                <div className={cn("gap-3 md:gap-4", viewMode === "grid" ? "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5" : "space-y-1")}>
+                <div className={cn("gap-3", viewMode === "grid" ? "grid grid-cols-2" : "space-y-1")}>
                   {Array.from({ length: 4 }).map((_, i) => viewMode === "grid" ? <div key={i} className="aspect-[2/3] rounded-xl bg-[#1c1c1c] animate-pulse" /> : <SkeletonProject key={i} />)}
                 </div>
               ) : (
-                <div className={cn("gap-3 md:gap-4", viewMode === "grid" ? "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5" : "space-y-1")}>
+                <div className={cn("gap-3", viewMode === "grid" ? "grid grid-cols-2" : "space-y-1")}>
                   {projects.slice(0, 10).map((item, i) => viewMode === "grid"
                     ? <MangaCard key={`${item.slug}-${i}`} item={item} variant="project" index={i} accent={accent} accentStyle={accentStyle} />
                     : <ProjectCard key={`${item.slug}-${i}`} item={item} index={i} accent={accent} accentStyle={accentStyle} />)}

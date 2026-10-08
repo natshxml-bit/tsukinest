@@ -205,7 +205,7 @@ export default function LatestPage({
   return (
     <main className="min-h-screen bg-[#0a0a0a] text-white pb-28 font-sans selection:bg-white/10 overflow-x-hidden">
       <header className="sticky top-0 z-50 bg-[#0a0a0a]/90 backdrop-blur-sm border-b border-white/[0.05] transform-gpu">
-        <div className="max-w-md md:max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-md mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.back()}
@@ -230,7 +230,7 @@ export default function LatestPage({
         </div>
       </header>
 
-      <section className="px-4 pt-5 max-w-md md:max-w-6xl mx-auto">
+      <section className="px-4 pt-5 max-w-md mx-auto">
         <div className="flex justify-between items-end mb-4">
           <div>
             <h2 className="text-lg font-bold text-white">Update Terkini</h2>
@@ -267,7 +267,7 @@ export default function LatestPage({
         )}
 
         {!error && (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
             {loading ? (
               Array.from({ length: 9 }).map((_, i) => (
                 <SkeletonCardGrid key={i} />
@@ -281,7 +281,7 @@ export default function LatestPage({
                 />
               ))
             ) : (
-              <div className="col-span-2 md:col-span-4 lg:col-span-6 flex flex-col items-center py-20 text-neutral-500">
+              <div className="col-span-2 md:col-span-3 flex flex-col items-center py-20 text-neutral-500">
                 <ImageIcon className="w-12 h-12 mb-3 opacity-20" />
                 <p className="text-sm font-medium">Belum ada update terbaru.</p>
               </div>

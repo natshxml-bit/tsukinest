@@ -250,7 +250,7 @@ export default function ExplorePage() {
   return (
     <main className="min-h-screen bg-[#0a0a0a] text-white pb-28 overflow-x-hidden selection:bg-white/10">
       <header className="fixed top-0 left-0 right-0 z-40 bg-[#0a0a0a]/90 backdrop-blur-sm border-b border-white/[0.05]">
-        <div className="max-w-md md:max-w-6xl mx-auto flex items-center gap-3 px-4 h-14">
+        <div className="max-w-md mx-auto flex items-center gap-3 px-4 h-14">
           <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", accentStyle.bg)}>
             <Compass size={18} className="text-white" />
           </div>
@@ -262,7 +262,7 @@ export default function ExplorePage() {
       </header>
 
       <div className="fixed top-14 left-0 right-0 z-30 bg-[#0a0a0a]/90 backdrop-blur-sm border-b border-white/[0.05]">
-        <div className="max-w-md md:max-w-6xl mx-auto px-4 py-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <div className="max-w-md mx-auto px-4 py-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
           {filterPills.map((p) => {
             const active = filter === p.key;
             return (
@@ -278,14 +278,14 @@ export default function ExplorePage() {
         </div>
       </div>
 
-      <section className="pt-28 px-4 max-w-md md:max-w-6xl mx-auto space-y-5 md:space-y-8">
+      <section className="pt-28 px-4 max-w-md mx-auto space-y-5">
         {isLoading && (
           <div>
             <div className="flex items-center gap-2 mb-3">
               <div className={cn("w-6 h-6 rounded-md flex items-center justify-center shrink-0", accentStyle.bg)}><Flame size={14} className="text-white" /></div>
               <h3 className="text-white font-semibold text-sm">Memuat...</h3>
             </div>
-            <div className={cn("grid gap-3 md:gap-4", grid === 2 ? "grid-cols-2 md:grid-cols-4 lg:grid-cols-6" : "grid-cols-3 md:grid-cols-5 lg:grid-cols-7")}>
+            <div className={cn("grid gap-3", grid === 2 ? "grid-cols-2" : "grid-cols-3")}>
               {Array.from({ length: 6 }).map((_, i) => <SkeletonCardGrid key={i} />)}
             </div>
           </div>
@@ -318,7 +318,7 @@ export default function ExplorePage() {
               </div>
               <span className={cn("text-xs font-bold shrink-0 tabular-nums", accentStyle.text)}>{mangaList.length}</span>
             </div>
-            <div className={cn("gap-3 md:gap-4", grid === 2 ? "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6" : "grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7")}>
+            <div className={cn("grid gap-3", grid === 2 ? "grid-cols-2" : "grid-cols-3 gap-2.5")}>
               {mangaList.map((manga, index) => (
                 <div key={`${manga.slug}-${index}`} onClick={handleSaveScroll}>
                   <ExploreCard manga={manga} grid={grid} user={user} onRequireLogin={() => setShowLoginModal(true)} />

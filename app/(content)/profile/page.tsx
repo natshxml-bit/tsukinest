@@ -597,7 +597,7 @@ export default function ProfilePage() {
         className="absolute top-0 left-0 right-0 h-56 pointer-events-none opacity-[0.15]"
         style={{ background: `radial-gradient(60% 100% at 50% 0%, ${accentStyle.hex}, transparent)` }}
       />
-      <div className="max-w-md md:max-w-4xl mx-auto px-5 pt-8 pb-4 relative z-10">
+      <div className="max-w-md mx-auto px-5 pt-8 pb-4 relative z-10">
         <div className="flex items-center gap-3 mb-8">
           <div className={cn(
             "p-2.5 rounded-2xl border shadow-lg backdrop-blur-md bg-[#1c1c1c] border-white/[0.05]",
@@ -613,7 +613,7 @@ export default function ProfilePage() {
 
       {/* ── CONDITIONAL RENDER: LOGGED IN VS LOGGED OUT ── */}
       {user ? (
-        <div className="max-w-md md:max-w-4xl mx-auto px-5 space-y-8 relative z-10">
+        <div className="max-w-md mx-auto px-5 space-y-8 relative z-10">
           {/* ── AVATAR ── */}
           <div className="flex flex-col items-center">
             <div
@@ -748,7 +748,7 @@ export default function ProfilePage() {
           )}
 
           {/* ── STATS ── */}
-          <div className="grid grid-cols-3 md:grid-cols-3 gap-2.5 md:gap-4">
+          <div className="grid grid-cols-3 gap-2.5">
             <Link
               href="/library"
               className="group relative overflow-hidden bg-[#141414] border border-white/[0.05] rounded-2xl p-3.5 flex flex-col items-center justify-center min-h-[92px] gap-1.5 transition-all hover:border-white/10 active:scale-[0.97]"
@@ -879,7 +879,7 @@ export default function ProfilePage() {
           </div>
         </div>
       ) : (
-        <div className="max-w-md md:max-w-4xl mx-auto px-5 relative z-10 pt-10">
+        <div className="max-w-md mx-auto px-5 relative z-10 pt-10">
           <div className="flex flex-col items-center mb-10 text-center">
             <div className={cn(
               "w-24 h-24 rounded-3xl flex items-center justify-center mb-5 border bg-[#141414] border-white/[0.05]"
@@ -1078,7 +1078,7 @@ export default function ProfilePage() {
                       <Sparkles className={cn("w-4 h-4", accentStyle.text)} /> Warna Aksen
                     </div>
                     
-                    <div className="grid grid-cols-6 md:grid-cols-8 gap-3">
+                    <div className="grid grid-cols-6 gap-3">
                       <label
                         className={cn(
                           "relative aspect-square rounded-xl border-2 transition-all active:scale-90 flex items-center justify-center overflow-hidden cursor-pointer",

@@ -419,16 +419,14 @@ export default function AllSeriesPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white pb-24 relative overflow-x-hidden selection:bg-white/10">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-[#0a0a0a]/90 backdrop-blur-sm border-b border-white/[0.05] transform-gpu">
-        <div className="max-w-md md:max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div className="sticky top-0 z-40 bg-[#0a0a0a]/90 backdrop-blur-sm border-b border-white/[0.05] px-4 py-3 flex items-center justify-between transform-gpu">
         <h1 className="text-xl font-bold tracking-tight">All Series</h1>
         <button
           onClick={openBottomSheet}
           className={cn("p-2.5 rounded-full active:scale-95 transition-all shadow-lg", accentStyle.bg, "text-white")}
         >
           <SlidersHorizontal className="w-4 h-4" />
-          </button>
-        </div>
+        </button>
       </div>
 
       {/* Active Filter Chips */}
@@ -453,9 +451,9 @@ export default function AllSeriesPage() {
       )}
 
       {/* Content */}
-      <div className="max-w-md md:max-w-6xl mx-auto px-4 pt-4">
+      <div className="px-4 pt-4">
         {isLoading ? (
-          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-4 md:gap-4">
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
             {Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : mangaList.length === 0 ? (
@@ -468,7 +466,7 @@ export default function AllSeriesPage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-4 md:gap-4">
+            <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
               {mangaList.map((manga, index) => (
                 <div key={`${manga.slug}-${index}`} onClick={handleSaveScroll}>
                   <MangaCard item={manga} accentStyle={accentStyle} />
@@ -549,7 +547,7 @@ export default function AllSeriesPage() {
                 </div>
               </FilterSection>
               <FilterSection title="Genre">
-                <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {genres.map((g) => (
                     <Chip
                       key={g.id}

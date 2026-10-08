@@ -563,7 +563,7 @@ export default function LibraryPage() {
 
       {/* Header */}
       <div className="sticky top-0 z-40 bg-[#0F0F12]/95 backdrop-blur-xl border-b border-white/5">
-        <div className="max-w-lg md:max-w-6xl mx-auto px-4 pt-3 pb-2">
+        <div className="max-w-lg mx-auto px-4 pt-3 pb-2">
           {/* Tab Switcher */}
           <div className="flex gap-1 mb-3">
             {[
@@ -752,7 +752,7 @@ export default function LibraryPage() {
         </div>
       </div>
 
-      <main className="max-w-lg md:max-w-6xl mx-auto px-4 pt-4 pb-24">
+      <main className="max-w-lg mx-auto px-4 pt-4 pb-24">
         {/* Action Bar */}
         <div className="flex items-center justify-between mb-4">
           {isEditMode ? (
@@ -908,7 +908,7 @@ export default function LibraryPage() {
             )}
           </div>
         ) : viewType === "grid" ? (
-          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+          <div className="grid grid-cols-3 gap-3">
             {filteredData.map((manga) => {
               const cleanTitle =
                 manga.title?.replace(/subtitle indonesia/i, "").trim() ||
