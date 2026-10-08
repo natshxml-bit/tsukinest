@@ -54,7 +54,7 @@ function transformItem(item: Record<string, unknown>): MangaItem {
 function GenreHeader({ genre, onBack, accentStyle }: { genre: string; onBack: () => void; accentStyle: { text: string } }) {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-slate-950/95 border-b border-white/[0.04]">
-      <div className="max-w-md mx-auto flex items-center gap-3 px-4 h-14">
+      <div className="max-w-md md:max-w-6xl mx-auto flex items-center gap-3 px-4 h-14">
         <button
           onClick={onBack}
           className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/[0.03] border border-white/[0.06] active:scale-90 transition-transform"
@@ -320,7 +320,7 @@ export default function GenrePage() {
     <div className="min-h-screen bg-slate-950 text-slate-100 pb-24 selection:bg-white/10">
       <GenreHeader genre={formattedGenre} onBack={() => router.back()} accentStyle={accentStyle as any} />
 
-      <main className="max-w-md mx-auto px-4 pt-20 space-y-6">
+      <main className="max-w-md md:max-w-6xl mx-auto px-4 pt-20 space-y-6 md:space-y-8">
         <div className="flex items-center gap-2.5">
           <div className="relative flex-1">
             <button
@@ -339,7 +339,7 @@ export default function GenrePage() {
                 <div className="fixed inset-0 z-40" onClick={() => setShowGenreDropdown(false)} />
                 <div className="absolute top-13 left-0 right-0 z-50 mt-2 p-2 bg-slate-900 border border-white/[0.08] rounded-xl shadow-2xl shadow-black/50 max-h-[60vh] overflow-y-auto scrollbar-hide">
                   {genreList.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-1">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-1">
                       {genreList.map((g) => (
                         <button
                           key={g.slug}
@@ -402,14 +402,14 @@ export default function GenrePage() {
         {error && !loading ? (
           <GenreErrorState onRetry={() => fetchGenre(1, true)} accentStyle={accentStyle as any} />
         ) : loading && items.length === 0 ? (
-          <div className={cn("gap-3", viewMode === "grid" ? "grid grid-cols-2" : "space-y-4")}>
+          <div className={cn("gap-3 md:gap-4", viewMode === "grid" ? "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6" : "space-y-4")}>
             {Array.from({ length: 6 }).map((_, i) => viewMode === "grid" ? <SkeletonCard key={i} /> : <SkeletonList key={i} />)}
           </div>
         ) : sorted.length === 0 ? (
           <EmptyState genre={formattedGenre} accentStyle={accentStyle as any} />
         ) : (
           <>
-            <div className={cn("gap-3", viewMode === "grid" ? "grid grid-cols-2" : "space-y-1")}>
+            <div className={cn("gap-3 md:gap-4", viewMode === "grid" ? "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6" : "space-y-1")}>
               {sorted.map((item) => viewMode === "grid" ? <MangaCard key={item.slug} item={item} accentStyle={accentStyle as any} /> : <ListCard key={item.slug} item={item} accentStyle={accentStyle as any} />)}
             </div>
             {hasMore && (

@@ -215,7 +215,7 @@ export default function BottomNav() {
   return (
     <nav
       className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 pointer-events-none pb-[env(safe-area-inset-bottom)]",
+        "fixed bottom-0 left-0 right-0 z-50 pointer-events-none pb-[env(safe-area-inset-bottom)] md:hidden",
         // Smooth GPU accelerated hide/reveal
         "transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform",
         isVisible ? "translate-y-0" : "translate-y-[150%]",

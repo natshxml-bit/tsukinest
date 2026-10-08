@@ -268,7 +268,7 @@ export function ChapterReader() {
   /* ─── Loading ─── */
   if (reader.loading) {
     return (
-      <div className="h-screen w-screen bg-[#050505] flex flex-col items-center justify-center text-white gap-4">
+      <div className="h-screen w-full bg-[#050505] flex flex-col items-center justify-center text-white gap-4">
         <div className={`w-10 h-10 rounded-full border-2 border-white/10 border-t-white/60 animate-spin`} />
         <p className="text-sm text-gray-500 font-medium tracking-wide">Memuat chapter...</p>
       </div>
@@ -278,7 +278,7 @@ export function ChapterReader() {
   /* ─── Error ─── */
   if (!reader.data || reader.data.images.length === 0) {
     return (
-      <div className="h-screen w-screen bg-[#050505] flex flex-col items-center justify-center text-white gap-5 px-6">
+      <div className="h-screen w-full bg-[#050505] flex flex-col items-center justify-center text-white gap-5 px-6">
         <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
           <AlertTriangle className="w-8 h-8 text-gray-600" />
         </div>
@@ -324,7 +324,7 @@ export function ChapterReader() {
         className={
           reader.mode === "vertical"
             ? "flex flex-col items-center w-full pt-20 pb-8"
-            : "relative flex items-center justify-center h-screen w-screen overflow-hidden bg-black"
+            : "relative flex items-center justify-center h-screen w-full overflow-hidden bg-black"
         }
         onTouchStart={reader.onTouchStart}
         onTouchEnd={reader.onTouchEnd}

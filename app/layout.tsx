@@ -122,10 +122,13 @@ export default function RootLayout({
   return (
     <html lang="id" className={`${inter.variable}`}>
       <body
-        className={`${inter.className} bg-zinc-950 text-white antialiased flex flex-col min-h-screen items.center`}
+        className={`${inter.className} bg-zinc-950 text-white antialiased flex flex-col min-h-screen items-center`}
       >
         <AppProvider>
-          <div className="w-full max-w-md min-h-screen bg-black relative shadow-2xl flex flex-col overflow-x-hidden border-x border-zinc-900">
+          {/* Container adaptif:
+              - Mobile (<md): terkunci max-w-md (448px) seperti app HP, bottom nav.
+              - Desktop (>=md): FULL WIDTH, navbar atas, tanpa border/shadow kolom. */}
+          <div className="w-full max-w-md md:max-w-none md:w-full min-h-screen bg-black relative shadow-2xl md:shadow-none flex flex-col overflow-x-hidden border-x border-zinc-900 md:border-x-0">
 
             {/* Sync data user + heartbeat online status (gak render apa-apa) */}
             <PresenceTracker />

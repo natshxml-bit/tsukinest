@@ -179,7 +179,7 @@ function SearchContent() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white pb-28 overflow-x-hidden selection:bg-white/10">
       <header className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-white/[0.05]">
-        <div className="max-w-md mx-auto flex items-center gap-3 px-4 h-14">
+        <div className="max-w-md md:max-w-6xl mx-auto flex items-center gap-3 px-4 h-14">
           <button
             onClick={() => router.back()}
             className="w-10 h-10 flex items-center justify-center rounded-full bg-[#1c1c1c] border border-white/[0.06] text-neutral-300 hover:bg-[#262626] active:scale-95 transition-all duration-200"
@@ -211,7 +211,7 @@ function SearchContent() {
         </div>
       </header>
 
-      <main className="pt-20 px-4 max-w-md mx-auto space-y-6">
+      <main className="pt-20 px-4 max-w-md md:max-w-6xl mx-auto space-y-6 md:space-y-8">
         {!hasSearched && !loading && (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center mb-4", accentStyle.soft)}>
@@ -233,7 +233,7 @@ function SearchContent() {
                 <p className="text-[11px] text-neutral-500 mt-0.5">Memuat hasil pencarian</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
               {Array.from({ length: 6 }).map((_, i) => <SkeletonCardGrid key={i} />)}
             </div>
           </>
@@ -280,7 +280,7 @@ function SearchContent() {
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
               {results.map((item, i) => (
                 <SearchCard key={`${item.slug}-${i}`} item={item} accentStyle={accentStyle} />
               ))}
