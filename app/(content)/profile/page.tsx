@@ -181,7 +181,7 @@ const IconGoogle = memo(({ className = "w-5 h-5" }: { className?: string }) => (
 
 function SkeletonProfile() {
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center gap-5 p-4 relative overflow-hidden">
+    <div className="min-h-full bg-[#0a0a0a] flex flex-col items-center justify-center gap-5 p-4 relative overflow-hidden">
       <div className="w-28 h-28 rounded-full bg-[#1c1c1c] animate-pulse ring-1 ring-white/[0.08]" />
       <div className="w-48 h-6 rounded-full bg-[#1c1c1c] animate-pulse" />
       <div className="w-32 h-4 rounded-md bg-[#1c1c1c] animate-pulse" />
@@ -572,7 +572,7 @@ export default function ProfilePage() {
   if (isLoading) return <SkeletonProfile />;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white pb-28 relative overflow-x-hidden selection:bg-white/10">
+    <div className="min-h-full bg-[#0a0a0a] text-white pb-28 relative overflow-x-hidden selection:bg-white/10">
 
       {/* ── TOAST QUEUE ── */}
       <div className="fixed top-4 left-0 right-0 z-[100] flex flex-col items-center gap-2 pointer-events-none px-4">
@@ -1047,9 +1047,9 @@ export default function ProfilePage() {
 
       {/* SETTINGS SHEET */}
       {isSettingsOpen && user && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-md">
           <div
-            className="bg-[#141414] w-full sm:w-[440px] sm:rounded-3xl rounded-t-3xl border border-white/[0.05] max-h-[90vh] overflow-y-auto scrollbar-hide"
+            className="bg-[#141414] w-full rounded-t-3xl border border-white/[0.05] max-h-[90vh] overflow-y-auto scrollbar-hide"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-[#141414]/95 backdrop-blur-xl z-10 flex items-center justify-between p-5 border-b border-white/[0.05]">

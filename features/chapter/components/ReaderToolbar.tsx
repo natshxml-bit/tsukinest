@@ -26,12 +26,12 @@ export function ReaderToolbar({
 
   return (
     <header
-      className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 ${
+      className={`fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50 transition-all duration-500 ${
         showUI ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-6 pointer-events-none"
       }`}
     >
       <div className="bg-gradient-to-b from-black/80 via-black/50 to-transparent pt-4 pb-8 px-4">
-        <div className="max-w-3xl mx-auto flex items-center gap-3">
+        <div className="w-full flex items-center gap-3">
           <button
             onClick={onBack}
             className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 backdrop-blur-md transition-all active:scale-95"

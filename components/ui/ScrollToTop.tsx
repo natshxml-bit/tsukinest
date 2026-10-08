@@ -23,7 +23,7 @@ export function ScrollToTop({ accentStyle }: ScrollToTopProps) {
     <button
       onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
       className={cn(
-        "fixed bottom-20 right-4 z-40 w-10 h-10 rounded-full border border-white/[0.08] text-white flex items-center justify-center shadow-lg transition-all active:scale-90 hover:brightness-110",
+        "fixed bottom-20 right-[calc(50%-14rem+1rem)] z-40 w-10 h-10 rounded-full border border-white/[0.08] text-white flex items-center justify-center shadow-lg transition-all active:scale-90 hover:brightness-110",
         accentStyle.bg
       )}
     >

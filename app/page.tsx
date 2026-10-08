@@ -228,7 +228,7 @@ function Header({ onNotifClick, hasUnread, user, onSearchClick, accentStyle }: {
   const displayName = user?.displayName || "Guest";
   const photoURL = user?.photoURL;
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-white/[0.05]">
+    <header className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-white/[0.05]">
       <div className="max-w-md mx-auto flex items-center justify-between px-4 h-14">
         <Link href="/profile" prefetch={false} className="flex items-center gap-3 active:scale-95 transition-transform duration-150">
           <div className="relative">
@@ -592,7 +592,7 @@ function ScrollToTop({ accentStyle }: { accentStyle: AccentStyle }) {
   }, []);
   if (!show) return null;
   return (
-    <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className={cn("fixed bottom-20 right-4 z-40 w-10 h-10 rounded-full border border-white/[0.08] text-white flex items-center justify-center shadow-lg transition-all active:scale-90 hover:brightness-110", accentStyle.bg)}>
+    <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className={cn("fixed bottom-20 right-[calc(50%-14rem+1rem)] z-40 w-10 h-10 rounded-full border border-white/[0.08] text-white flex items-center justify-center shadow-lg transition-all active:scale-90 hover:brightness-110", accentStyle.bg)}>
       ↑
     </button>
   );
@@ -754,7 +754,7 @@ export default function HomePage() {
   const handleNotifClick = useCallback(() => setNotifOpen((v) => !v), []);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white pb-24 touch-pan-y relative overflow-x-hidden"
+    <div className="min-h-full bg-[#0a0a0a] text-white pb-24 touch-pan-y relative overflow-x-hidden"
       onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
       {pulling && (
         <div className="fixed top-14 left-0 right-0 z-40 flex justify-center transition-transform" style={{ transform: `translateY(${pullDistance}px)` }}>

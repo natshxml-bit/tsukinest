@@ -42,10 +42,10 @@ export function PageViewer({
             alt={`Halaman ${page + 1}`}
             className={`${
               fit === "height"
-                ? "h-screen w-auto max-w-none"
+                ? "h-full w-auto max-w-full"
                 : fit === "width"
                 ? "w-full h-auto"
-                : "max-w-full max-h-screen"
+                : "max-w-full max-h-full"
             } object-contain transition-opacity duration-200 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
             draggable={false}
             referrerPolicy="no-referrer"

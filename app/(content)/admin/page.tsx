@@ -62,7 +62,7 @@ function CenteredMessage({
   actionClass: string;
 }) {
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center gap-4 p-6 text-center">
+    <div className="min-h-full bg-[#0a0a0a] flex flex-col items-center justify-center gap-4 p-6 text-center">
       <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center", iconClass)}>
         <Icon className="w-6 h-6" />
       </div>
@@ -87,7 +87,7 @@ export default function AdminDashboardPage() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center gap-4 p-4">
+      <div className="min-h-full bg-[#0a0a0a] flex flex-col items-center justify-center gap-4 p-4">
         <div className="w-10 h-10 rounded-full border-2 border-white/10 border-t-white animate-spin" />
         <p className="text-xs text-neutral-500">Memeriksa akses...</p>
       </div>
@@ -616,7 +616,7 @@ function AdminDashboardContent({ currentUid }: { currentUid: string | null }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] pb-24">
+    <div className="min-h-full bg-[#0a0a0a] pb-24">
       {/* Header */}
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center justify-between mb-1">

@@ -62,12 +62,12 @@ export function MangaDetail() {
   /* ─── Loading ─── */
   if (hook.loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white">
-        <div className="relative h-[45vh] w-full overflow-hidden">
+      <div className="min-h-full bg-[#0a0a0a] text-white">
+        <div className="relative aspect-[4/3] w-full overflow-hidden">
           <div className="absolute inset-0 bg-[#141414] animate-pulse" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] to-transparent" />
         </div>
-        <div className="px-4 -mt-32 relative z-10 max-w-4xl mx-auto space-y-4">
+        <div className="px-4 -mt-24 relative z-10 max-w-md mx-auto space-y-4">
           <div className="flex gap-5">
             <div className="w-36 md:w-48 aspect-[3/4] rounded-2xl bg-[#141414] animate-pulse" />
             <div className="flex-1 space-y-3 pt-16">
@@ -85,7 +85,7 @@ export function MangaDetail() {
   /* ─── Error ─── */
   if (hook.error || !hook.data) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center p-6">
+      <div className="min-h-full bg-[#0a0a0a] text-white flex items-center justify-center p-6">
         <div className="bg-[#141414] border border-white/[0.05] rounded-2xl p-8 text-center max-w-md w-full">
           <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Sparkles className="text-red-400 w-7 h-7" />
@@ -106,7 +106,7 @@ export function MangaDetail() {
   const data = hook.data;
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-neutral-100 selection:bg-white/10 pb-24 overflow-x-hidden">
+    <main className="min-h-full bg-[#0a0a0a] text-neutral-100 selection:bg-white/10 pb-24 overflow-x-hidden">
       {/* Login notification */}
       {hook.showNotification && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-2 fade-in duration-200">
@@ -168,7 +168,7 @@ export function MangaDetail() {
       </MangaHeader>
 
       {/* Main content */}
-      <div className="px-4 -mt-28 md:-mt-36 relative z-10 max-w-4xl mx-auto space-y-5">
+      <div className="px-4 -mt-24 relative z-10 max-w-md mx-auto space-y-5">
         {/* Cover + title */}
         <FadeIn delay={100}>
           <MangaCover data={data} accentText={accentStyle.text}>
@@ -353,8 +353,9 @@ export function MangaDetail() {
         )}
       </div>
 
-      {/* Floating CTA */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 md:hidden">
+      {/* Floating CTA — muncul di semua ukuran layar (desktop = mobile).
+          bottom-24 supaya tidak menabrak BottomNav. */}
+      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 w-full max-w-md px-4">
         {hook.latestChapter && (
           <Link
             href={`/chapter/${hook.slug}/${hook.latestChapter.slug}`}

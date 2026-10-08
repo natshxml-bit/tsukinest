@@ -177,8 +177,8 @@ function SearchContent() {
   }, [submittedQuery]);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white pb-28 overflow-x-hidden selection:bg-white/10">
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-white/[0.05]">
+    <div className="min-h-full bg-[#0a0a0a] text-white pb-28 overflow-x-hidden selection:bg-white/10">
+      <header className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-white/[0.05]">
         <div className="max-w-md mx-auto flex items-center gap-3 px-4 h-14">
           <button
             onClick={() => router.back()}
@@ -296,7 +296,7 @@ export default function SearchPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center">
+        <div className="min-h-full bg-[#0a0a0a] flex flex-col items-center justify-center">
           <div className="w-10 h-10 border-4 border-white/10 border-t-white/40 rounded-full animate-spin" />
         </div>
       }

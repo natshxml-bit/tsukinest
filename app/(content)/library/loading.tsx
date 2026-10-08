@@ -1,6 +1,6 @@
 export default function LibraryLoading() {
   return (
-    <div className="min-h-screen bg-[#0a0a0a] pt-14 px-4 pb-28">
+    <div className="min-h-full bg-[#0a0a0a] pt-14 px-4 pb-28">
       <div className="max-w-md mx-auto mt-6 space-y-4">
         <div className="h-7 w-40 bg-white/5 rounded-xl animate-pulse" />
         <div className="grid grid-cols-2 gap-3">

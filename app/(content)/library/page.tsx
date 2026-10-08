@@ -500,7 +500,7 @@ export default function LibraryPage() {
 
   if (isLoadingUser) {
     return (
-      <div className="min-h-screen bg-[#0F0F12] flex items-center justify-center">
+      <div className="min-h-full bg-[#0F0F12] flex items-center justify-center">
         <div
           className={`w-10 h-10 rounded-full border-4 border-white/10 ${
             accent === "custom"
@@ -514,7 +514,7 @@ export default function LibraryPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#0F0F12] text-white flex flex-col items-center justify-center p-6 text-center">
+      <div className="min-h-full bg-[#0F0F12] text-white flex flex-col items-center justify-center p-6 text-center">
         <div
           className={`w-24 h-24 rounded-3xl ${accentStyle.soft} flex items-center justify-center mb-6 ring-1 ${accentStyle.border}`}
         >
@@ -536,7 +536,7 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0F0F12] text-white relative overflow-x-hidden">
+    <div className="min-h-full bg-[#0F0F12] text-white relative overflow-x-hidden">
       {/* Toast */}
       {toast.show && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] w-[92%] max-w-sm animate-in slide-in-from-top-5 fade-in duration-300">

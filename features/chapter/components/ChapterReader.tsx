@@ -268,7 +268,7 @@ export function ChapterReader() {
   /* ─── Loading ─── */
   if (reader.loading) {
     return (
-      <div className="h-screen w-screen bg-[#050505] flex flex-col items-center justify-center text-white gap-4">
+      <div className="min-h-full w-full bg-[#050505] flex flex-col items-center justify-center text-white gap-4">
         <div className={`w-10 h-10 rounded-full border-2 border-white/10 border-t-white/60 animate-spin`} />
         <p className="text-sm text-gray-500 font-medium tracking-wide">Memuat chapter...</p>
       </div>
@@ -278,7 +278,7 @@ export function ChapterReader() {
   /* ─── Error ─── */
   if (!reader.data || reader.data.images.length === 0) {
     return (
-      <div className="h-screen w-screen bg-[#050505] flex flex-col items-center justify-center text-white gap-5 px-6">
+      <div className="min-h-full w-full bg-[#050505] flex flex-col items-center justify-center text-white gap-5 px-6">
         <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
           <AlertTriangle className="w-8 h-8 text-gray-600" />
         </div>
@@ -297,14 +297,14 @@ export function ChapterReader() {
 
   return (
     <div
-      className="relative min-h-screen bg-[#050505] text-white select-none overflow-x-hidden antialiased"
+      className="relative min-h-full bg-[#050505] text-white select-none overflow-x-hidden antialiased"
     >
       {/* Tap zones (horizontal mode) */}
       {reader.mode === "horizontal" && (
         <>
-          <div className="fixed inset-y-0 left-0 w-[25%] z-30 cursor-w-resize" onClick={reader.prevPage} />
-          <div className="fixed inset-y-0 left-[25%] right-[25%] z-30" onClick={() => reader.setShowUI((v) => !v)} />
-          <div className="fixed inset-y-0 right-0 w-[25%] z-30 cursor-e-resize" onClick={reader.nextPage} />
+          <div className="absolute inset-y-0 left-0 w-[25%] z-30 cursor-w-resize" onClick={reader.prevPage} />
+          <div className="absolute inset-y-0 left-[25%] right-[25%] z-30" onClick={() => reader.setShowUI((v) => !v)} />
+          <div className="absolute inset-y-0 right-0 w-[25%] z-30 cursor-e-resize" onClick={reader.nextPage} />
         </>
       )}
 
@@ -324,7 +324,7 @@ export function ChapterReader() {
         className={
           reader.mode === "vertical"
             ? "flex flex-col items-center w-full pt-20 pb-8"
-            : "relative flex items-center justify-center h-screen w-screen overflow-hidden bg-black"
+            : "relative flex items-center justify-center h-[80vh] max-h-[720px] w-full overflow-hidden bg-black"
         }
         onTouchStart={reader.onTouchStart}
         onTouchEnd={reader.onTouchEnd}
@@ -344,14 +344,14 @@ export function ChapterReader() {
 
         {/* Vertical mode page counter when UI hidden */}
         {reader.mode === "horizontal" && !reader.showUI && (
-          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 bg-black/60 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 text-xs font-mono text-gray-400">
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-40 bg-black/60 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 text-xs font-mono text-gray-400">
             {reader.page + 1} <span className="text-gray-600">/</span> {data.images.length}
           </div>
         )}
 
         {/* Vertical mode: bottom actions */}
         {reader.mode === "vertical" && (
-          <div className="relative z-20 w-full max-w-2xl mx-auto px-5 mt-12 space-y-8 pb-12">
+          <div className="relative z-20 w-full max-w-md mx-auto px-5 mt-12 space-y-8 pb-12">
             <div className="flex items-center gap-3">
               <button
   onClick={() => reader.handleNavigation(data.prev_chapter)}

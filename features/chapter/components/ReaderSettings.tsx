@@ -199,7 +199,7 @@ export function ChapterListDrawer({
   return (
     <div className="fixed inset-0 z-[60] flex flex-col justify-end animate-in fade-in duration-200">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-[#0a0a0a] rounded-t-3xl h-[85dvh] flex flex-col shadow-2xl border-t border-white/[0.06] animate-in slide-in-from-bottom duration-300">
+      <div className="relative bg-[#0a0a0a] rounded-t-3xl h-[80vh] max-h-[640px] flex flex-col shadow-2xl border-t border-white/[0.06] animate-in slide-in-from-bottom duration-300">
         <div className="flex justify-center pt-4 pb-2 cursor-pointer" onClick={onClose}>
           <div className="w-10 h-1 bg-gray-700 rounded-full" />
         </div>
@@ -292,7 +292,7 @@ export function CommentsDrawer({
   return (
     <div className="fixed inset-0 z-[60] flex flex-col justify-end animate-in fade-in duration-200">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-[#0a0a0a] rounded-t-3xl h-[85dvh] flex flex-col shadow-2xl border-t border-white/[0.06] animate-in slide-in-from-bottom duration-300">
+      <div className="relative bg-[#0a0a0a] rounded-t-3xl h-[80vh] max-h-[640px] flex flex-col shadow-2xl border-t border-white/[0.06] animate-in slide-in-from-bottom duration-300">
         <div className="flex justify-center pt-4 pb-2 cursor-pointer" onClick={onClose}>
           <div className="w-10 h-1 bg-gray-700 rounded-full" />
         </div>
@@ -419,12 +419,12 @@ export function ZoomedImage({ src, onClose }: { src: string | null; onClose: () 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={onClose}>
       <div className="absolute inset-0 bg-black/95 backdrop-blur-xl" />
-      <div className="relative max-w-5xl max-h-[90vh] w-full flex justify-center">
+      <div className="relative max-w-md max-h-[90vh] w-full flex justify-center">
         <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="absolute -top-14 right-0 p-2.5 bg-white/5 hover:bg-red-500/80 rounded-full text-white border border-white/10 transition-colors z-10">
           <X className="w-5 h-5" />
         </button>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="Zoomed" className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()} />
+        <img src={src} alt="Zoomed" className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()} />
       </div>
     </div>
   );

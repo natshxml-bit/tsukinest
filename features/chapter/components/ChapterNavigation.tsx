@@ -34,7 +34,7 @@ export function ChapterNavigation({
 
   return (
     <footer
-      className={`fixed bottom-0 inset-x-0 z-50 transition-all duration-500 ${
+      className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50 transition-all duration-500 ${
         showUI ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6 pointer-events-none"
       }`}
     >
@@ -47,7 +47,7 @@ export function ChapterNavigation({
       </div>
 
       <div className="bg-gradient-to-t from-black via-black/90 to-transparent pt-4 pb-5 px-4">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
+        <div className="w-full flex items-center justify-between">
           <button
             onClick={onPrev}
             disabled={!hasPrev}

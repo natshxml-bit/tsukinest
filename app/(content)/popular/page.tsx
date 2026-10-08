@@ -188,7 +188,7 @@ export default function PopularPage({
   }, [currentPage]);
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-white pb-28 font-sans selection:bg-white/10 overflow-x-hidden">
+    <main className="min-h-full bg-[#0a0a0a] text-white pb-28 font-sans selection:bg-white/10 overflow-x-hidden">
       <header className="sticky top-0 z-50 bg-[#0a0a0a]/90 backdrop-blur-sm border-b border-white/[0.05] transform-gpu">
         <div className="max-w-md mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -252,7 +252,7 @@ export default function PopularPage({
         )}
 
         {!error && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 gap-3">
             {loading ? (
               Array.from({ length: 9 }).map((_, i) => (
                 <SkeletonCardGrid key={i} />
@@ -266,7 +266,7 @@ export default function PopularPage({
                 />
               ))
             ) : (
-              <div className="col-span-2 md:col-span-3 flex flex-col items-center py-20 text-neutral-500">
+              <div className="col-span-2 flex flex-col items-center py-20 text-neutral-500">
                 <ImageIcon className="w-12 h-12 mb-3 opacity-20" />
                 <p className="text-sm font-medium">
                   Belum ada komik populer.

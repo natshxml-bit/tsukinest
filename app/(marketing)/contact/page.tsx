@@ -56,7 +56,7 @@ const socials = [
 
 export default function ContactPage() {
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-white pb-24">
+    <main className="min-h-full bg-[#0a0a0a] text-white pb-24">
       <div className="max-w-2xl mx-auto px-4 py-8">
         {/* Header */}
         <Link

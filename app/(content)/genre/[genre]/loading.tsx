@@ -1,6 +1,6 @@
 export default function GenreLoading() {
   return (
-    <div className="min-h-screen bg-slate-950 pt-20 px-4 pb-24">
+    <div className="min-h-full bg-slate-950 pt-20 px-4 pb-24">
       <div className="max-w-md mx-auto">
         <div className="flex gap-2 mb-6">
           <div className="flex-1 h-11 rounded-xl bg-white/5 animate-pulse" />

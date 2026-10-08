@@ -53,7 +53,7 @@ function transformItem(item: Record<string, unknown>): MangaItem {
 
 function GenreHeader({ genre, onBack, accentStyle }: { genre: string; onBack: () => void; accentStyle: { text: string } }) {
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-slate-950/95 border-b border-white/[0.04]">
+    <header className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50 bg-slate-950/95 border-b border-white/[0.04]">
       <div className="max-w-md mx-auto flex items-center gap-3 px-4 h-14">
         <button
           onClick={onBack}
@@ -317,7 +317,7 @@ export default function GenrePage() {
   if (!isMounted) return null;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 pb-24 selection:bg-white/10">
+    <div className="min-h-full bg-slate-950 text-slate-100 pb-24 selection:bg-white/10">
       <GenreHeader genre={formattedGenre} onBack={() => router.back()} accentStyle={accentStyle as any} />
 
       <main className="max-w-md mx-auto px-4 pt-20 space-y-6">
@@ -337,7 +337,7 @@ export default function GenrePage() {
             {showGenreDropdown && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowGenreDropdown(false)} />
-                <div className="absolute top-13 left-0 right-0 z-50 mt-2 p-2 bg-slate-900 border border-white/[0.08] rounded-xl shadow-2xl shadow-black/50 max-h-[60vh] overflow-y-auto scrollbar-hide">
+                <div className="absolute top-13 left-0 right-0 z-50 mt-2 p-2 bg-slate-900 border border-white/[0.08] rounded-xl shadow-2xl shadow-black/50 max-h-[24rem] overflow-y-auto scrollbar-hide">
                   {genreList.length > 0 ? (
                     <div className="grid grid-cols-2 gap-1">
                       {genreList.map((g) => (

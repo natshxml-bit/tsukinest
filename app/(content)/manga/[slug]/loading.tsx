@@ -1,15 +1,15 @@
 // app/(content)/manga/[slug]/loading.tsx
 export default function MangaDetailLoading() {
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
+    <div className="min-h-full bg-[#0a0a0a] text-white">
       {/* Hero skeleton */}
-      <div className="relative h-[45vh] w-full overflow-hidden">
+      <div className="relative aspect-[4/3] w-full overflow-hidden">
         <div className="absolute inset-0 bg-[#141414] animate-pulse" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] to-transparent" />
       </div>
 
       {/* Content skeleton */}
-      <div className="px-4 -mt-32 relative z-10 max-w-4xl mx-auto space-y-4">
+      <div className="px-4 -mt-24 relative z-10 max-w-md mx-auto space-y-4">
         <div className="flex gap-5">
           <div className="w-36 aspect-[3/4] rounded-2xl bg-[#141414] animate-pulse shrink-0" />
           <div className="flex-1 space-y-3 pt-16">

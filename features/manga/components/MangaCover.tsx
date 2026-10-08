@@ -47,9 +47,9 @@ interface MangaCoverProps {
 
 export function MangaCover({ data, accentText, children }: MangaCoverProps) {
   return (
-    <div className="flex gap-4 md:gap-6 items-end">
+    <div className="flex gap-4 items-end">
       {/* Cover */}
-      <div className="shrink-0 w-32 md:w-44 aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl shadow-black/80 border border-white/5 relative bg-[#141414] z-20 group">
+      <div className="shrink-0 w-32 aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl shadow-black/80 border border-white/5 relative bg-[#141414] z-20 group">
         {children}
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
         {data.type && (
@@ -82,7 +82,7 @@ export function MangaCover({ data, accentText, children }: MangaCoverProps) {
           )}
         </div>
 
-        <h1 className="text-xl md:text-3xl font-extrabold leading-tight text-white tracking-tight">
+        <h1 className="text-xl font-extrabold leading-tight text-white tracking-tight">
           {data.title}
         </h1>
 

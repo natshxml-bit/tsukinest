@@ -70,7 +70,7 @@ export function ChapterList({
   return (
     <div className="bg-[#141414] border border-white/[0.05] rounded-2xl overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[#141414]">
+      <div className="p-4 border-b border-white/5 flex flex-col justify-between gap-3 bg-[#141414]">
         <div className="flex items-center gap-2.5">
           <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center", accentStyle.bg + "/10")}>
             <Layers size={14} className={accentStyle.text} />
@@ -103,7 +103,7 @@ export function ChapterList({
       </div>
 
       {/* List */}
-      <div className="max-h-[65vh] overflow-y-auto custom-scrollbar bg-[#0a0a0a]" ref={chapterListRef}>
+      <div className="max-h-[28rem] overflow-y-auto custom-scrollbar bg-[#0a0a0a]" ref={chapterListRef}>
         {shownChapters.length === 0 ? (
           <div className="p-8 text-center text-neutral-600 text-sm">Tidak ada bab yang cocok</div>
         ) : (

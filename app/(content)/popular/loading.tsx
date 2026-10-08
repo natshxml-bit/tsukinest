@@ -1,6 +1,6 @@
 export default function PopularLoading() {
   return (
-    <div className="min-h-screen bg-[#0a0a0a] pt-14 px-4 pb-28">
+    <div className="min-h-full bg-[#0a0a0a] pt-14 px-4 pb-28">
       <div className="max-w-md mx-auto">
         <div className="flex justify-between items-end mb-4 mt-5">
           <div className="space-y-2">

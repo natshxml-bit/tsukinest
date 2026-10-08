@@ -417,7 +417,7 @@ export default function AllSeriesPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white pb-24 relative overflow-x-hidden selection:bg-white/10">
+    <div className="min-h-full bg-[#0a0a0a] text-white pb-24 relative overflow-x-hidden selection:bg-white/10">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-[#0a0a0a]/90 backdrop-blur-sm border-b border-white/[0.05] px-4 py-3 flex items-center justify-between transform-gpu">
         <h1 className="text-xl font-bold tracking-tight">All Series</h1>
@@ -453,7 +453,7 @@ export default function AllSeriesPage() {
       {/* Content */}
       <div className="px-4 pt-4">
         {isLoading ? (
-          <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
+          <div className="grid grid-cols-3 gap-2.5">
             {Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : mangaList.length === 0 ? (
@@ -466,7 +466,7 @@ export default function AllSeriesPage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
+            <div className="grid grid-cols-3 gap-2.5">
               {mangaList.map((manga, index) => (
                 <div key={`${manga.slug}-${index}`} onClick={handleSaveScroll}>
                   <MangaCard item={manga} accentStyle={accentStyle} />
@@ -510,7 +510,7 @@ export default function AllSeriesPage() {
                 Reset
               </button>
             </div>
-            <div className="space-y-6 max-h-[55vh] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
               <FilterSection title="Urutkan">
                 <div className="flex flex-wrap gap-2">
                   {orderOptions.map((opt) => (

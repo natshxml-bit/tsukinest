@@ -248,8 +248,8 @@ export default function ExplorePage() {
   ];
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-white pb-28 overflow-x-hidden selection:bg-white/10">
-      <header className="fixed top-0 left-0 right-0 z-40 bg-[#0a0a0a]/90 backdrop-blur-sm border-b border-white/[0.05]">
+    <main className="min-h-full bg-[#0a0a0a] text-white pb-28 overflow-x-hidden selection:bg-white/10">
+      <header className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-md z-40 bg-[#0a0a0a]/90 backdrop-blur-sm border-b border-white/[0.05]">
         <div className="max-w-md mx-auto flex items-center gap-3 px-4 h-14">
           <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", accentStyle.bg)}>
             <Compass size={18} className="text-white" />
@@ -261,7 +261,7 @@ export default function ExplorePage() {
         </div>
       </header>
 
-      <div className="fixed top-14 left-0 right-0 z-30 bg-[#0a0a0a]/90 backdrop-blur-sm border-b border-white/[0.05]">
+      <div className="fixed top-14 left-1/2 -translate-x-1/2 w-full max-w-md z-30 bg-[#0a0a0a]/90 backdrop-blur-sm border-b border-white/[0.05]">
         <div className="max-w-md mx-auto px-4 py-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
           {filterPills.map((p) => {
             const active = filter === p.key;
@@ -358,7 +358,7 @@ export default function ExplorePage() {
 
       <button
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        className={cn("fixed bottom-6 right-4 z-30 w-11 h-11 rounded-full flex items-center justify-center border border-white/10 transition-all duration-300", accentStyle.bg, showFab ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none")}
+        className={cn("fixed bottom-6 right-[calc(50%-14rem+1rem)] z-30 w-11 h-11 rounded-full flex items-center justify-center border border-white/10 transition-all duration-300", accentStyle.bg, showFab ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none")}
       >
         <ArrowUp className="w-4 h-4 text-white" />
       </button>

@@ -55,7 +55,7 @@ interface MangaInfoProps {
 
 export function MangaInfo({ author, artist, totalChapters, updatedAt }: MangaInfoProps) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+    <div className="grid grid-cols-2 gap-2.5">
       <StatCard icon={<User size={15} />} label="Penulis" value={author || "-"} color="primary" />
       <StatCard icon={<Paintbrush size={15} />} label="Ilustrator" value={artist || "-"} color="emerald" />
       <StatCard icon={<Hash size={15} />} label="Total Bab" value={String(totalChapters)} color="amber" />

@@ -73,7 +73,9 @@ export function MangaHeader({
   ];
 
   return (
-    <section className="relative h-[45vh] md:h-[50vh] w-full overflow-hidden">
+    /* Hero: rasio tetap (bukan vh) supaya proporsi sama di HP maupun desktop.
+       Container selalu 448px, jadi tinggi ikut lebar — bukan tinggi viewport. */
+    <section className="relative aspect-[4/3] w-full overflow-hidden">
       {/* Backdrop */}
       <div className="absolute inset-0">
         {children}

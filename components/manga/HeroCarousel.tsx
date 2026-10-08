@@ -89,7 +89,7 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <div className="relative aspect-[4/3] sm:aspect-[16/9] w-full overflow-hidden rounded-2xl bg-[#141414] shadow-xl">
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-[#141414] shadow-xl">
         <AnimatePresence initial={false}>
           <motion.div
             key={idx}
@@ -134,7 +134,7 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
                   )}
 
                   {/* Title */}
-                  <h2 className="text-white font-bold text-base sm:text-lg md:text-2xl leading-tight line-clamp-1 mb-1">
+                  <h2 className="text-white font-bold text-base leading-tight line-clamp-1 mb-1">
                     {visible[idx].title}
                   </h2>
 
@@ -164,7 +164,7 @@ export default function HeroCarousel({ items, accentStyle }: HeroCarouselProps) 
 
                   {/* Synopsis */}
                   {visible[idx].synopsis && (
-                    <p className="text-neutral-300 text-[11px] sm:text-xs md:text-sm leading-relaxed line-clamp-2 mb-3 max-w-2xl">
+                    <p className="text-neutral-300 text-[11px] leading-relaxed line-clamp-2 mb-3 max-w-full">
                       {visible[idx].synopsis}
                     </p>
                   )}

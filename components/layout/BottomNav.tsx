@@ -224,7 +224,7 @@ export default function BottomNav() {
       )}
       aria-label="Bottom Navigation"
     >
-      <div className="mx-auto max-w-[28rem] px-3 sm:px-4 pb-4 pt-2 pointer-events-auto">
+      <div className="mx-auto max-w-md px-3 pb-4 pt-2 pointer-events-auto">
         {/* Main Glassmorphic Floating Dock
           Utilizes layered shadows, border highlights, and backdrop blurs
           for a deep, premium Next-gen OS feel.

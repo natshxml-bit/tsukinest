@@ -71,7 +71,7 @@ function ResetPasswordContent() {
 
   if (verifyingCode) {
     return (
-      <div className="min-h-screen bg-[#0F0F12] flex justify-center items-center">
+      <div className="min-h-full bg-[#0F0F12] flex justify-center items-center">
         <div className={`w-8 h-8 border-4 border-white/10 ${accent === 'custom' ? 'border-t-[var(--tsuki-custom-hex)]' : accentStyle.border.replace('border-', 'border-t-')} rounded-full animate-spin`}></div>
       </div>
     );
@@ -79,7 +79,7 @@ function ResetPasswordContent() {
 
   if (!isValidCode) {
     return (
-      <div className="min-h-screen bg-[#0F0F12] text-white flex flex-col items-center justify-center p-4 text-center">
+      <div className="min-h-full bg-[#0F0F12] text-white flex flex-col items-center justify-center p-4 text-center">
         <span className="text-5xl mb-4">⚠️</span>
         <h3 className="text-xl font-bold mb-2">Link Gak Valid / Expired</h3>
         <p className="text-xs text-gray-400 max-w-xs">
@@ -90,7 +90,7 @@ function ResetPasswordContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0F0F12] text-white flex flex-col items-center justify-center p-4">
+    <div className="min-h-full bg-[#0F0F12] text-white flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm bg-[#1A1A24]/80 backdrop-blur-md border border-white/5 rounded-3xl p-6 shadow-2xl">
         <div className="flex justify-center mb-6">
           <div className={`p-3 ${accentStyle.soft} border ${accent === 'custom' ? 'border-[var(--tsuki-custom-hex)] shadow-[0_0_15px_var(--tsuki-custom-hex)]' : accentStyle.border + ' ' + accentStyle.glow} rounded-2xl`}>
@@ -151,7 +151,7 @@ function ResetPasswordContent() {
 export default function ResetPasswordPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#0F0F12] flex justify-center items-center">
+      <div className="min-h-full bg-[#0F0F12] flex justify-center items-center">
         <div className="w-8 h-8 border-4 border-white/10 border-t-gray-500 rounded-full animate-spin"></div>
       </div>
     }>
